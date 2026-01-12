@@ -82,7 +82,7 @@ The repository is also a Claude Code plugin with this structure:
 oh-my-claude-sisyphus/
 ├── .claude-plugin/
 │   └── plugin.json            # Plugin manifest
-├── agents/                    # 11 specialized subagents
+├── agents/                    # 10 specialized subagents
 ├── commands/                  # 12 slash commands
 ├── skills/                    # 3 skills (ultrawork, git-master, frontend-ui-ux)
 ├── hooks/
@@ -105,7 +105,6 @@ The installer adds to your Claude Code config (`~/.claude/`):
 │   ├── multimodal-looker.md   # Visual analysis (Sonnet)
 │   ├── momus.md               # Plan reviewer (Opus)
 │   ├── metis.md               # Pre-planning consultant (Opus)
-│   ├── orchestrator-sisyphus.md # Todo coordinator (Sonnet)
 │   ├── sisyphus-junior.md     # Focused executor (Sonnet)
 │   └── prometheus.md          # Strategic planner (Opus)
 ├── commands/
@@ -344,7 +343,6 @@ Claude will automatically delegate to these specialized agents:
 
 | | Agent | Model | Best For |
 |---|-------|-------|----------|
-| 🪨 | **Orchestrator-Sisyphus** | Sonnet | Todo coordination, task delegation, progress tracking |
 | ✨ | **Sisyphus Junior** | Sonnet | Focused task execution, plan following, direct implementation |
 
 ### Manual Agent Invocation
@@ -407,7 +405,7 @@ curl -fsSL https://raw.githubusercontent.com/Yeachan-Heo/oh-my-claude-sisyphus/m
 Or manually:
 
 ```bash
-rm ~/.claude/agents/{oracle,librarian,explore,frontend-engineer,document-writer,multimodal-looker,momus,metis,orchestrator-sisyphus,sisyphus-junior,prometheus}.md
+rm ~/.claude/agents/{oracle,librarian,explore,frontend-engineer,document-writer,multimodal-looker,momus,metis,sisyphus-junior,prometheus}.md
 rm ~/.claude/commands/{sisyphus,sisyphus-default,ultrawork,deepsearch,analyze,plan,review,prometheus,orchestrator,ralph-loop,cancel-ralph}.md
 ```
 
@@ -486,7 +484,6 @@ The original oh-my-opencode used multiple AI providers. This port uses Claude mo
 | **Multimodal Looker** | Various | Claude Sonnet | Visual analysis |
 | **Momus** | GPT-5.2 | Claude Opus | Plan reviewer (Greek god of criticism) |
 | **Metis** | Claude Opus 4.5 | Claude Opus | Pre-planning consultant (goddess of wisdom) |
-| **Orchestrator-Sisyphus** | Claude Sonnet 4.5 | Claude Sonnet | Todo coordination and delegation |
 | **Sisyphus-Junior** | Configurable | Claude Sonnet | Focused task executor |
 | **Prometheus** | Planning System | Claude Opus | Strategic planner (fire-bringer) |
 
@@ -545,7 +542,7 @@ The original oh-my-opencode used multiple AI providers. This port uses Claude mo
 
 | Feature | Description |
 |---------|-------------|
-| **11 Specialized Agents** | Oracle, Librarian, Explore, Frontend Engineer, Document Writer, Multimodal Looker, Momus, Metis, Orchestrator-Sisyphus, Sisyphus-Junior, Prometheus |
+| **10 Specialized Agents** | Oracle, Librarian, Explore, Frontend Engineer, Document Writer, Multimodal Looker, Momus, Metis, Sisyphus-Junior, Prometheus |
 | **18 Lifecycle Hooks** | rules-injector, sisyphus-orchestrator, auto-slash-command, keyword-detector, ralph-loop, todo-continuation, context-window-limit-recovery, preemptive-compaction, session-recovery, directory-readme-injector, comment-checker, thinking-block-validator, empty-message-sanitizer, edit-error-recovery, non-interactive-env, agent-usage-reminder, background-notification, think-mode |
 | **6 Builtin Skills** | sisyphus, orchestrator, ultrawork, ralph-loop, frontend-ui-ux, git-master |
 | **Magic Keywords** | `ultrawork`, `search`, `analyze`, `ultrathink` trigger enhanced modes |

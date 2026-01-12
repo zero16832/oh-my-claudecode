@@ -57,7 +57,6 @@ rm -f "$CLAUDE_CONFIG_DIR/agents/document-writer.md"
 rm -f "$CLAUDE_CONFIG_DIR/agents/multimodal-looker.md"
 rm -f "$CLAUDE_CONFIG_DIR/agents/momus.md"
 rm -f "$CLAUDE_CONFIG_DIR/agents/metis.md"
-rm -f "$CLAUDE_CONFIG_DIR/agents/orchestrator-sisyphus.md"
 rm -f "$CLAUDE_CONFIG_DIR/agents/sisyphus-junior.md"
 rm -f "$CLAUDE_CONFIG_DIR/agents/prometheus.md"
 

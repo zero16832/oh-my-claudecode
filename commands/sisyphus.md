@@ -35,8 +35,7 @@ Delegate to specialists using the Task tool:
 | `multimodal-looker` | Sonnet | Screenshot/diagram analysis |
 | `momus` | Opus | Critical plan review |
 | `metis` | Opus | Pre-planning, hidden requirements |
-| `orchestrator-sisyphus` | Sonnet | Todo coordination |
-| `sisyphus-junior` | Sonnet | Focused task execution |
+| `sisyphus-junior` | Sonnet | Focused task execution (no delegation) |
 | `prometheus` | Opus | Strategic planning |
 
 ### Delegation Specification (Required for All Delegations)
