@@ -137,7 +137,7 @@ User says "stop", "cancel", "abort" → You determine what to stop:
 | `cancel-ultrawork` | Cancel ultrawork mode | "stop" in ultrawork | `/cancel-ultrawork` |
 | `cancel-ultraqa` | Cancel ultraqa workflow | "stop" in ultraqa | `/cancel-ultraqa` |
 
-### All 28 Agents
+### All 27 Agents
 
 Always use `oh-my-claudecode:` prefix when calling via Task tool.
 
