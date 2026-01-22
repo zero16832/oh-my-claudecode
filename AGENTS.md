@@ -200,15 +200,15 @@ Settings live in `~/.claude/settings.json`:
 
 | Command | Description |
 |---------|-------------|
-| `/default <task>` | Activate multi-agent orchestration |
-| `/ultrawork <task>` | Maximum performance mode |
-| `/plan <description>` | Start planning with Planner |
-| `/review [plan]` | Review plan with Critic |
-| `/ralph-loop <task>` | Self-referential loop |
-| `/cancel-ralph` | Cancel active Ralph Loop |
-| `/orchestrator <task>` | Complex task coordination |
-| `/deepsearch <query>` | Thorough codebase search |
-| `/analyze <target>` | Deep analysis |
+| `/oh-my-claudecode:default <task>` | Activate multi-agent orchestration |
+| `/oh-my-claudecode:ultrawork <task>` | Maximum performance mode |
+| `/oh-my-claudecode:plan <description>` | Start planning with Planner |
+| `/oh-my-claudecode:review [plan]` | Review plan with Critic |
+| `/oh-my-claudecode:ralph-loop <task>` | Self-referential loop |
+| `/oh-my-claudecode:cancel-ralph` | Cancel active Ralph Loop |
+| `/oh-my-claudecode:orchestrator <task>` | Complex task coordination |
+| `/oh-my-claudecode:deepsearch <query>` | Thorough codebase search |
+| `/oh-my-claudecode:analyze <target>` | Deep analysis |
 
 ## COMPLEXITY HOTSPOTS
 

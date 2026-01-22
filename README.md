@@ -97,17 +97,17 @@ python_repl(action="execute", researchSessionID="analysis",
             code="print(df.describe())")
 ```
 
-### /research Command (NEW)
+### /oh-my-claudecode:research Command (NEW)
 
 Orchestrate parallel scientist agents for comprehensive research workflows:
 
 ```
-/research <goal>                    # Standard research with checkpoints
-/research AUTO: <goal>              # Fully autonomous until complete
-/research status                    # Check current session
-/research resume                    # Resume interrupted session
-/research list                      # List all sessions
-/research report <session-id>       # Generate report for session
+/oh-my-claudecode:research <goal>                    # Standard research with checkpoints
+/oh-my-claudecode:research AUTO: <goal>              # Fully autonomous until complete
+/oh-my-claudecode:research status                    # Check current session
+/oh-my-claudecode:research resume                    # Resume interrupted session
+/oh-my-claudecode:research list                      # List all sessions
+/oh-my-claudecode:research report <session-id>       # Generate report for session
 ```
 
 **Research Protocol:**
@@ -141,9 +141,9 @@ I'll intelligently determine what to stop based on context.
 - **28 Specialized Agents** - architect, researcher, explore, designer, writer, vision, critic, analyst, executor, planner, qa-tester, scientist (with tier variants)
 - **30 Skills** - orchestrate, ultrawork, ralph, planner, deepsearch, deepinit, git-master, frontend-ui-ux, learner, research, and more
 - **Persistent Python REPL** - True variable persistence for data analysis
-- **Research Workflow** - Parallel scientist orchestration with `/research` command (new in 3.3.x)
+- **Research Workflow** - Parallel scientist orchestration with `/oh-my-claudecode:research` command (new in 3.3.x)
 - **HUD Statusline** - Real-time visualization of orchestration state
-- **Learned Skills** - Extract reusable insights from sessions with `/learner`
+- **Learned Skills** - Extract reusable insights from sessions with `/oh-my-claudecode:learner`
 - **Memory System** - Persistent context that survives compaction
 
 ---
@@ -175,9 +175,9 @@ Run `/oh-my-claudecode:hud setup` to configure display options.
 **Good news:** Your old commands still work!
 
 ```
-/ralph "task"      →  Still works (or just say "ralph: task")
-/ultrawork "task"  →  Still works (or just use "ulw" keyword)
-/planner "task"    →  Still works (or just say "plan this")
+/oh-my-claudecode:ralph "task"      →  Still works (or just say "ralph: task")
+/oh-my-claudecode:ultrawork "task"  →  Still works (or just use "ulw" keyword)
+/oh-my-claudecode:planner "task"    →  Still works (or just say "plan this")
 ```
 
 The difference? You don't *need* them anymore. Everything auto-activates.
@@ -198,7 +198,9 @@ See the [Migration Guide](docs/MIGRATION.md) for details.
 ## Requirements
 
 - [Claude Code](https://docs.anthropic.com/claude-code) CLI
-- Anthropic API key
+- One of:
+  - **Claude Max/Pro subscription** (recommended for individuals)
+  - **Anthropic API key** (for API-based usage)
 
 ---
 

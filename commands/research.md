@@ -11,12 +11,12 @@ Orchestrate parallel scientist agents for comprehensive research workflows with 
 ## Usage Examples
 
 ```
-/research <goal>                    # Standard research with user checkpoints
-/research AUTO: <goal>              # Fully autonomous until complete
-/research status                    # Check current research session status
-/research resume                    # Resume interrupted research session
-/research list                      # List all research sessions
-/research report <session-id>       # Generate report for session
+/oh-my-claudecode:research <goal>                    # Standard research with user checkpoints
+/oh-my-claudecode:research AUTO: <goal>              # Fully autonomous until complete
+/oh-my-claudecode:research status                    # Check current research session status
+/oh-my-claudecode:research resume                    # Resume interrupted research session
+/oh-my-claudecode:research list                      # List all research sessions
+/oh-my-claudecode:research report <session-id>       # Generate report for session
 ```
 
 ## Research Protocol
@@ -86,7 +86,7 @@ Sessions are stored at `.omc/research/{session-id}/` with:
 ## Cancellation
 
 ```
-/cancel-research
+/oh-my-claudecode:cancel-research
 ```
 
 Or say: "stop research", "cancel research", "abort"

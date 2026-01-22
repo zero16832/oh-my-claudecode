@@ -21,20 +21,20 @@ Research is a multi-stage workflow that decomposes complex research goals into p
 ## Usage Examples
 
 ```
-/research <goal>                    # Standard research with user checkpoints
-/research AUTO: <goal>              # Fully autonomous until complete
-/research status                    # Check current research session status
-/research resume                    # Resume interrupted research session
-/research list                      # List all research sessions
-/research report <session-id>       # Generate report for session
+/oh-my-claudecode:research <goal>                    # Standard research with user checkpoints
+/oh-my-claudecode:research AUTO: <goal>              # Fully autonomous until complete
+/oh-my-claudecode:research status                    # Check current research session status
+/oh-my-claudecode:research resume                    # Resume interrupted research session
+/oh-my-claudecode:research list                      # List all research sessions
+/oh-my-claudecode:research report <session-id>       # Generate report for session
 ```
 
 ### Quick Examples
 
 ```
-/research What are the performance characteristics of different sorting algorithms?
-/research AUTO: Analyze authentication patterns in this codebase
-/research How does the error handling work across the API layer?
+/oh-my-claudecode:research What are the performance characteristics of different sorting algorithms?
+/oh-my-claudecode:research AUTO: Analyze authentication patterns in this codebase
+/oh-my-claudecode:research How does the error handling work across the API layer?
 ```
 
 ## Research Protocol
@@ -151,7 +151,7 @@ Pending stages: {{PENDING_STAGES}}
 ### AUTO Mode Example
 
 ```
-/research AUTO: Comprehensive security analysis of the authentication system
+/oh-my-claudecode:research AUTO: Comprehensive security analysis of the authentication system
 
 [Decomposition]
 - Stage 1 (LOW): Enumerate auth-related files
@@ -281,12 +281,12 @@ Batch 2: Stages 6-7 (parallel)
 
 | Command | Action |
 |---------|--------|
-| `/research status` | Show current session progress |
-| `/research resume` | Resume most recent interrupted session |
-| `/research resume <session-id>` | Resume specific session |
-| `/research list` | List all sessions with status |
-| `/research report <session-id>` | Generate/regenerate report |
-| `/research cancel` | Cancel current session (preserves state) |
+| `/oh-my-claudecode:research status` | Show current session progress |
+| `/oh-my-claudecode:research resume` | Resume most recent interrupted session |
+| `/oh-my-claudecode:research resume <session-id>` | Resume specific session |
+| `/oh-my-claudecode:research list` | List all sessions with status |
+| `/oh-my-claudecode:research report <session-id>` | Generate/regenerate report |
+| `/oh-my-claudecode:research cancel` | Cancel current session (preserves state) |
 
 ## Tag Extraction
 
@@ -481,7 +481,7 @@ Optional settings in `.claude/settings.json`:
 ## Cancellation
 
 ```
-/cancel-research
+/oh-my-claudecode:cancel-research
 ```
 
 Or say: "stop research", "cancel research", "abort"

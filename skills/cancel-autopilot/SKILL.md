@@ -17,7 +17,7 @@ Cancel an active autopilot session gracefully.
 ## Usage
 
 ```
-/cancel-autopilot
+/oh-my-claudecode:cancel-autopilot
 ```
 
 Or say: "stop autopilot", "cancel autopilot", "abort autopilot"
@@ -37,14 +37,14 @@ When cancelled, autopilot preserves:
 - Spec and plan files
 - Validation verdicts
 
-Run `/autopilot` to resume from where you left off.
+Run `/oh-my-claudecode:autopilot` to resume from where you left off.
 
 ## Force Clear
 
 To completely clear all state (no resume):
 
 ```
-/cancel-autopilot --clear
+/oh-my-claudecode:cancel-autopilot --clear
 ```
 
 This removes all autopilot files including:

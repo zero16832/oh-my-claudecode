@@ -46,7 +46,7 @@
 <remember priority>API client at src/api/client.ts</remember>
 
 # Or save notes manually
-/note Database schema uses PostgreSQL with Prisma ORM
+/oh-my-claudecode:note Database schema uses PostgreSQL with Prisma ORM
 ```
 
 ### 📋 Ralph Loop PRD Support
@@ -154,7 +154,7 @@ Choose **ONE** installation method below. Do not mix methods.
 claude plugin install oh-my-claude-sisyphus
 
 # Or from within Claude Code:
-/plugin oh-my-claude-sisyphus
+/oh-my-claudecode:plugin oh-my-claude-sisyphus
 ```
 
 Uses Node.js hooks from the plugin directory. Integrates directly with Claude Code's plugin system.
@@ -197,7 +197,7 @@ chmod +x scripts/install.sh
 Configure omc for the current project only:
 
 ```
-/omc-default
+/oh-my-claudecode:omc-default
 ```
 
 - Creates `./.claude/CLAUDE.md` in your current project
@@ -210,7 +210,7 @@ Configure omc for the current project only:
 Configure omc for all Claude Code sessions:
 
 ```
-/omc-default-global
+/oh-my-claudecode:omc-default-global
 ```
 
 - Creates `~/.claude/CLAUDE.md` globally
@@ -293,18 +293,18 @@ The installer adds to your Claude Code config (`~/.claude/`):
 │   ├── planner.md             # Strategic planner (Opus)
 │   └── qa-tester.md           # CLI/service testing (Sonnet)
 ├── commands/
-│   ├── orchestrate.md      # /orchestrate command
-│   ├── omc-default.md      # /omc-default command (project-scoped)
-│   ├── omc-default-global.md # /omc-default-global command (global)
-│   ├── ultrawork.md        # /ultrawork command
-│   ├── deepsearch.md       # /deepsearch command
-│   ├── analyze.md          # /analyze command
-│   ├── plan.md             # /plan command (planner)
-│   ├── review.md           # /review command (critic)
-│   ├── planner.md          # /planner command
-│   ├── orchestrator.md     # /orchestrator command
-│   ├── ralph-loop.md       # /ralph-loop command
-│   └── cancel-ralph.md     # /cancel-ralph command
+│   ├── orchestrate.md      # /oh-my-claudecode:orchestrate command
+│   ├── omc-default.md      # /oh-my-claudecode:omc-default command (project-scoped)
+│   ├── omc-default-global.md # /oh-my-claudecode:omc-default-global command (global)
+│   ├── ultrawork.md        # /oh-my-claudecode:ultrawork command
+│   ├── deepsearch.md       # /oh-my-claudecode:deepsearch command
+│   ├── analyze.md          # /oh-my-claudecode:analyze command
+│   ├── plan.md             # /oh-my-claudecode:plan command (planner)
+│   ├── review.md           # /oh-my-claudecode:review command (critic)
+│   ├── planner.md          # /oh-my-claudecode:planner command
+│   ├── orchestrator.md     # /oh-my-claudecode:orchestrator command
+│   ├── ralph-loop.md       # /oh-my-claudecode:ralph-loop command
+│   └── cancel-ralph.md     # /oh-my-claudecode:cancel-ralph command
 ├── skills/
 │   ├── ultrawork/SKILL.md  # Maximum performance mode
 │   ├── deepinit/SKILL.md   # Hierarchical AGENTS.md generation
@@ -363,22 +363,22 @@ claude
 /oh-my-claudecode:ultrawork implement user dashboard with charts
 
 # Initialize structured task with PRD
-/ralph-init implement user authentication with OAuth
+/oh-my-claudecode:ralph-init implement user authentication with OAuth
 
 # Maximum intensity with completion guarantee
-/ultrawork-ralph migrate database schema to PostgreSQL
+/oh-my-claudecode:ultrawork-ralph migrate database schema to PostgreSQL
 
 # Autonomous QA cycling
-/ultraqa all tests must pass with 90%+ coverage
+/oh-my-claudecode:ultraqa all tests must pass with 90%+ coverage
 
 # Save important discoveries
-/note Project uses Bun runtime instead of Node.js
+/oh-my-claudecode:note Project uses Bun runtime instead of Node.js
 
 # Deep search
-/deepsearch API endpoints that handle user data
+/oh-my-claudecode:deepsearch API endpoints that handle user data
 
 # Deep analysis
-/analyze performance bottleneck in the database layer
+/oh-my-claudecode:analyze performance bottleneck in the database layer
 ```
 
 ### Magic Keywords
@@ -867,7 +867,9 @@ If you're coming from oh-my-opencode:
 ## Requirements
 
 - [Claude Code](https://docs.anthropic.com/claude-code) installed
-- Anthropic API key (`ANTHROPIC_API_KEY` environment variable)
+- One of:
+  - **Claude Max/Pro subscription** (recommended for individuals)
+  - **Anthropic API key** (`ANTHROPIC_API_KEY` environment variable)
 - **Windows**: Node.js 20+ (for npm installation)
 - **macOS/Linux**: Bash shell (default) or Node.js 20+ (optional)
 

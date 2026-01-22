@@ -20,8 +20,8 @@ After running this command, the QA cycling will stop.
 
 ## To Start Fresh
 
-- `/ultraqa --tests` - Run until all tests pass
-- `/ultraqa --build` - Run until build succeeds
-- `/ultraqa --lint` - Run until no lint errors
-- `/ultraqa --typecheck` - Run until no type errors
-- `/ultraqa --custom "pattern"` - Run until pattern matches
+- `/oh-my-claudecode:ultraqa --tests` - Run until all tests pass
+- `/oh-my-claudecode:ultraqa --build` - Run until build succeeds
+- `/oh-my-claudecode:ultraqa --lint` - Run until no lint errors
+- `/oh-my-claudecode:ultraqa --typecheck` - Run until no type errors
+- `/oh-my-claudecode:ultraqa --custom "pattern"` - Run until pattern matches

@@ -81,11 +81,11 @@ Slash commands have been updated to use new naming:
 
 | Old Command | New Command |
 |-------------|-------------|
-| /sisyphus | /orchestrate |
-| /sisyphus-default | /omc-default |
-| /sisyphus-default-global | /omc-default-global |
-| /prometheus | /planner |
-| /mnemosyne | /learner |
+| /sisyphus | /oh-my-claudecode:orchestrate |
+| /sisyphus-default | /oh-my-claudecode:omc-default |
+| /sisyphus-default-global | /oh-my-claudecode:omc-default-global |
+| /prometheus | /oh-my-claudecode:planner |
+| /mnemosyne | /oh-my-claudecode:learner |
 
 ## Feature Flag Changes
 
@@ -183,4 +183,4 @@ After migration, verify your setup:
 If you encounter issues during migration:
 - Check the [GitHub Issues](https://github.com/Yeachan-Heo/oh-my-claude-sisyphus/issues)
 - Review the [Documentation](https://github.com/Yeachan-Heo/oh-my-claude-sisyphus/tree/main/docs)
-- Run `/doctor` to diagnose common issues
+- Run `/oh-my-claudecode:doctor` to diagnose common issues

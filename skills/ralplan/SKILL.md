@@ -129,7 +129,7 @@ Based on Critic's verdict, the skill either approves the plan or continues itera
 **If verdict is OKAY:**
 - Mark plan as approved
 - Log approval with iteration count
-- Prepare plan for execution with `/ralph` or manual orchestration
+- Prepare plan for execution with `/oh-my-claudecode:ralph` or manual orchestration
 - Set state `active: false, current_phase: "complete"`
 
 **If verdict is REJECT:**
@@ -205,7 +205,7 @@ CRITIC_FEEDBACK:
 
 To stop an active ralplan session:
 
-- Use `/cancel-ralph` (automatically detects ralplan via state file)
+- Use `/oh-my-claudecode:cancel-ralph` (automatically detects ralplan via state file)
 - Or manually delete `.omc/ralplan-state.json`
 
 ## Skill Workflow

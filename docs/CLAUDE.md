@@ -160,35 +160,35 @@ User says "stop", "cancel", "abort" → You determine what to stop:
 
 | Skill | Purpose | Auto-Trigger | Manual |
 |-------|---------|--------------|--------|
-| `autopilot` | Full autonomous execution from idea to working code | "autopilot", "build me", "I want a" | `/autopilot` |
+| `autopilot` | Full autonomous execution from idea to working code | "autopilot", "build me", "I want a" | `/oh-my-claudecode:autopilot` |
 | `orchestrate` | Core multi-agent orchestration | Always active | - |
-| `ralph` | Persistence until verified complete | "don't stop", "must complete" | `/ralph` |
-| `ultrawork` | Maximum parallel execution | "fast", "parallel", "ulw" | `/ultrawork` |
-| `planner` | Strategic planning with interview | "plan this", broad requests | `/planner` |
-| `plan` | Start planning session | "plan" keyword | `/plan` |
-| `ralplan` | Iterative planning (Planner+Architect+Critic) | "ralplan" keyword | `/ralplan` |
-| `review` | Review plan with Critic | "review plan" | `/review` |
-| `analyze` | Deep analysis/investigation | "analyze", "debug", "why" | `/analyze` |
-| `deepsearch` | Thorough codebase search | "search", "find", "where" | `/deepsearch` |
-| `deepinit` | Generate AGENTS.md hierarchy | "index codebase" | `/deepinit` |
+| `ralph` | Persistence until verified complete | "don't stop", "must complete" | `/oh-my-claudecode:ralph` |
+| `ultrawork` | Maximum parallel execution | "fast", "parallel", "ulw" | `/oh-my-claudecode:ultrawork` |
+| `planner` | Strategic planning with interview | "plan this", broad requests | `/oh-my-claudecode:planner` |
+| `plan` | Start planning session | "plan" keyword | `/oh-my-claudecode:plan` |
+| `ralplan` | Iterative planning (Planner+Architect+Critic) | "ralplan" keyword | `/oh-my-claudecode:ralplan` |
+| `review` | Review plan with Critic | "review plan" | `/oh-my-claudecode:review` |
+| `analyze` | Deep analysis/investigation | "analyze", "debug", "why" | `/oh-my-claudecode:analyze` |
+| `deepsearch` | Thorough codebase search | "search", "find", "where" | `/oh-my-claudecode:deepsearch` |
+| `deepinit` | Generate AGENTS.md hierarchy | "index codebase" | `/oh-my-claudecode:deepinit` |
 | `frontend-ui-ux` | Design sensibility for UI | UI/component context | (silent) |
 | `git-master` | Git expertise, atomic commits | git/commit context | (silent) |
-| `ultraqa` | QA cycling: test/fix/repeat | "test", "QA", "verify" | `/ultraqa` |
-| `learner` | Extract reusable skill from session | "extract skill" | `/learner` |
-| `note` | Save to notepad for memory | "remember", "note" | `/note` |
-| `hud` | Configure HUD statusline | - | `/hud` |
-| `doctor` | Diagnose installation issues | - | `/doctor` |
+| `ultraqa` | QA cycling: test/fix/repeat | "test", "QA", "verify" | `/oh-my-claudecode:ultraqa` |
+| `learner` | Extract reusable skill from session | "extract skill" | `/oh-my-claudecode:learner` |
+| `note` | Save to notepad for memory | "remember", "note" | `/oh-my-claudecode:note` |
+| `hud` | Configure HUD statusline | - | `/oh-my-claudecode:hud` |
+| `doctor` | Diagnose installation issues | - | `/oh-my-claudecode:doctor` |
 | `help` | Show OMC usage guide | - | `/oh-my-claudecode:help` |
 | `omc-setup` | One-time setup wizard | - | `/oh-my-claudecode:omc-setup` |
 | `omc-default` | Configure local project | - | (internal) |
 | `omc-default-global` | Configure global settings | - | (internal) |
-| `ralph-init` | Initialize PRD for structured ralph | - | `/ralph-init` |
-| `release` | Automated release workflow | - | `/release` |
-| `cancel-autopilot` | Cancel active autopilot session | "stop autopilot", "cancel autopilot" | `/cancel-autopilot` |
-| `cancel-ralph` | Cancel active ralph loop | "stop" in ralph | `/cancel-ralph` |
-| `cancel-ultrawork` | Cancel ultrawork mode | "stop" in ultrawork | `/cancel-ultrawork` |
-| `cancel-ultraqa` | Cancel ultraqa workflow | "stop" in ultraqa | `/cancel-ultraqa` |
-| `research` | Parallel scientist orchestration | "research", "analyze data" | `/research` |
+| `ralph-init` | Initialize PRD for structured ralph | - | `/oh-my-claudecode:ralph-init` |
+| `release` | Automated release workflow | - | `/oh-my-claudecode:release` |
+| `cancel-autopilot` | Cancel active autopilot session | "stop autopilot", "cancel autopilot" | `/oh-my-claudecode:cancel-autopilot` |
+| `cancel-ralph` | Cancel active ralph loop | "stop" in ralph | `/oh-my-claudecode:cancel-ralph` |
+| `cancel-ultrawork` | Cancel ultrawork mode | "stop" in ultrawork | `/oh-my-claudecode:cancel-ultrawork` |
+| `cancel-ultraqa` | Cancel ultraqa workflow | "stop" in ultraqa | `/oh-my-claudecode:cancel-ultraqa` |
+| `research` | Parallel scientist orchestration | "research", "analyze data" | `/oh-my-claudecode:research` |
 
 ### All 28 Agents
 
@@ -429,8 +429,8 @@ Say "setup omc" or run `/oh-my-claudecode:omc-setup` to configure. After that, e
 
 ### Troubleshooting
 
-- `/doctor` - Diagnose and fix installation issues
-- `/hud setup` - Install/repair HUD statusline
+- `/oh-my-claudecode:doctor` - Diagnose and fix installation issues
+- `/oh-my-claudecode:hud setup` - Install/repair HUD statusline
 
 ---
 
@@ -448,9 +448,9 @@ Autopilot activates automatically and handles the rest. No commands needed.
 ## Migration from 2.x
 
 All old commands still work:
-- `/ralph "task"` → Still works (or just say "don't stop until done")
-- `/ultrawork "task"` → Still works (or just say "fast" or use `ulw`)
-- `/planner "task"` → Still works (or just say "plan this")
+- `/oh-my-claudecode:ralph "task"` → Still works (or just say "don't stop until done")
+- `/oh-my-claudecode:ultrawork "task"` → Still works (or just say "fast" or use `ulw`)
+- `/oh-my-claudecode:planner "task"` → Still works (or just say "plan this")
 
 The difference? You don't NEED them anymore. Everything auto-activates.
 

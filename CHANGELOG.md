@@ -34,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Session locking with PID verification for safe concurrent access
   - Security: Socket mode 0600, path validation, symlink protection, signal escalation
 
-- **Research Command** (`/research`): Orchestrate parallel scientist agents for complex research
+- **Research Command** (`/oh-my-claudecode:research`): Orchestrate parallel scientist agents for complex research
   - Multi-stage decomposition (3-7 independent stages)
   - Smart model routing: LOW (Haiku) / MEDIUM (Sonnet) / HIGH (Opus)
   - Parallel execution with 5 agent concurrency limit
@@ -98,12 +98,12 @@ python_repl(action="execute", researchSessionID="analysis",
 ## [3.2.0] - 2026-01-21
 
 ### Added
-- **Autopilot Command**: Full autonomous execution from idea to working code
+- **Autopilot Command** (`/oh-my-claudecode:autopilot`): Full autonomous execution from idea to working code
   - 5-phase workflow: Expansion → Planning → Execution → QA → Validation
   - Magic keywords: "autopilot", "build me", "create me", "I want a/an"
   - Parallel validation with 3 architects (functional, security, quality)
   - Resume support with progress preservation
-- **Cancel-autopilot Skill**: Graceful cancellation with state preservation
+- **Cancel-autopilot Skill** (`/oh-my-claudecode:cancel-autopilot`): Graceful cancellation with state preservation
 - **8 new specialized agents registered**: security-reviewer, security-reviewer-low, build-fixer, build-fixer-low, tdd-guide, tdd-guide-low, code-reviewer, code-reviewer-low
 - **Autopilot HUD element**: Real-time phase progress display
 
@@ -202,9 +202,9 @@ This is a **breaking release** that renames the entire project and all agent nam
   - All environment variable prefixes updated for consistency
 
 - **Slash Commands Updated**: Agent-referencing commands now use new names
-  - `/plan` now uses `planner` agent (was `prometheus`)
-  - `/review` now uses `critic` agent (was `momus`)
-  - `/mnemosyne` → `/learner` for skill extraction
+  - `/oh-my-claudecode:plan` now uses `planner` agent (was `prometheus`)
+  - `/oh-my-claudecode:review` now uses `critic` agent (was `momus`)
+  - `/oh-my-claudecode:mnemosyne` → `/oh-my-claudecode:learner` for skill extraction
 
 ### Migration Guide
 
@@ -243,7 +243,7 @@ Real-time visualization of the Sisyphus orchestration system via Claude Code's s
 ### Added
 
 - **Mnemosyne - Learned Skills** (`src/hooks/mnemosyne/`)
-  - `/mnemosyne` command to extract reusable skills from conversations
+  - `/oh-my-claudecode:mnemosyne` command to extract reusable skills from conversations
   - Automatic skill injection based on trigger keywords in user messages
   - **Hybrid storage**: User-level (`~/.claude/skills/sisyphus-learned/`) + Project-level (`.sisyphus/skills/`)
   - YAML frontmatter format for skill metadata (triggers, tags, quality scores)
@@ -258,14 +258,14 @@ Real-time visualization of the Sisyphus orchestration system via Claude Code's s
   - **Display presets**: minimal, focused (default), full
   - **Elements**: ralph loop progress, PRD story, ultrawork status, context usage, agents, background tasks, todos
   - **Color coding**: Green (healthy), Yellow (warning), Red (critical)
-  - `/hud` command to configure display options
+  - `/oh-my-claudecode:hud` command to configure display options
   - Auto-refresh every ~300ms during active sessions
   - Type-coded agent visualization with model tier colors
 
 - **New Commands**
-  - `/mnemosyne` - Extract learned skills from current conversation
-  - `/hud [preset]` - Configure HUD display (minimal/focused/full)
-  - `/hud status` - Show detailed HUD status
+  - `/oh-my-claudecode:mnemosyne` - Extract learned skills from current conversation
+  - `/oh-my-claudecode:hud [preset]` - Configure HUD display (minimal/focused/full)
+  - `/oh-my-claudecode:hud status` - Show detailed HUD status
 
 - **New Test Suites**
   - `src/__tests__/mnemosyne/` - 41 tests for learned skills system
@@ -282,7 +282,7 @@ Real-time visualization of the Sisyphus orchestration system via Claude Code's s
 
 ### Breaking Changes
 
-- Renamed `/claudeception` to `/mnemosyne`
+- Renamed `/oh-my-claudecode:claudeception` to `/oh-my-claudecode:mnemosyne`
 - Renamed config from `claudeception.json` to `mnemosyne.json`
 - Module path changed from `hooks/learned-skills` to `hooks/mnemosyne`
 
@@ -349,12 +349,12 @@ Implements structured task tracking inspired by the original [Ralph](https://git
   - Pattern extraction and learning retrieval for context injection
 
 - **New Commands**
-  - `/ralph-init <task>` - Scaffold a PRD from task description with auto-generated user stories
-  - `/ultrawork-ralph <task>` - Maximum intensity mode with completion guarantee (ultrawork + ralph loop)
-  - `/ultraqa <goal>` - Autonomous QA cycling workflow (test → verify → fix → repeat)
-  - `/sisyphus-default` - Configure Sisyphus in local project `.claude/CLAUDE.md`
-  - `/sisyphus-default-global` - Configure Sisyphus globally in `~/.claude/CLAUDE.md`
-  - `/note <content>` - Save notes to notepad.md for compaction resilience
+  - `/oh-my-claudecode:ralph-init <task>` - Scaffold a PRD from task description with auto-generated user stories
+  - `/oh-my-claudecode:ultrawork-ralph <task>` - Maximum intensity mode with completion guarantee (ultrawork + ralph loop)
+  - `/oh-my-claudecode:ultraqa <goal>` - Autonomous QA cycling workflow (test → verify → fix → repeat)
+  - `/oh-my-claudecode:sisyphus-default` - Configure Sisyphus in local project `.claude/CLAUDE.md`
+  - `/oh-my-claudecode:sisyphus-default-global` - Configure Sisyphus globally in `~/.claude/CLAUDE.md`
+  - `/oh-my-claudecode:note <content>` - Save notes to notepad.md for compaction resilience
 
 - **New Agent Tiers**
   - `qa-tester-high` (Opus) - Complex integration testing
@@ -373,7 +373,7 @@ Implements structured task tracking inspired by the original [Ralph](https://git
 ### Changed
 
 - **Ralph Loop Enhanced**
-  - Auto-initializes PRD when user runs `/ralph-loop` without existing `prd.json`
+  - Auto-initializes PRD when user runs `/oh-my-claudecode:ralph-loop` without existing `prd.json`
   - PRD-based completion: loop ends when ALL stories have `passes: true`
   - Context injection includes current story, patterns, and recent learnings
   - Updated continuation prompts with structured story information
@@ -534,7 +534,7 @@ Started: 2026-01-19T...
 ### Refactored
 - **Merged sisyphus+orchestrator+ultrawork into default mode** - 80% behavior overlap consolidated
   - Default mode is now an intelligent orchestrator
-  - `/orchestrator` command deprecated (use default mode or `/ultrawork`)
+  - `/oh-my-claudecode:orchestrator` command deprecated (use default mode or `/oh-my-claudecode:ultrawork`)
   - Skill composition replaces agent swapping
 - **Removed deprecated orchestrator command** - Deleted `commands/orchestrator.md` and `orchestratorSkill` (1352 lines)
 - **Updated attribution** - Changed from "Port of" to "Inspired by" oh-my-opencode (70% divergence)

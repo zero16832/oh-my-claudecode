@@ -4,7 +4,7 @@
 
 Your old commands still work! But now you don't need them.
 
-**Before 3.0:** Explicitly invoke 25+ commands like `/ralph "task"`, `/ultrawork "task"`
+**Before 3.0:** Explicitly invoke 25+ commands like `/oh-my-claudecode:ralph "task"`, `/oh-my-claudecode:ultrawork "task"`
 
 **After 3.0:** Just work naturally - Claude auto-activates the right behaviors. One-time setup: just say "setup omc"
 
@@ -18,13 +18,13 @@ You had to remember and explicitly invoke specific commands for each mode:
 
 ```bash
 # 2.x workflow: Multiple commands, lots to remember
-/ralph "implement user authentication"       # Persistence mode
-/ultrawork "refactor the API layer"          # Maximum parallelism
-/planner "plan the new dashboard"            # Planning interview
-/deepsearch "find database schema files"     # Deep search
-/git-master "commit these changes"           # Git expertise
-/deepinit ./src                              # Index codebase
-/analyze "why is this test failing?"         # Deep analysis
+/oh-my-claudecode:ralph "implement user authentication"       # Persistence mode
+/oh-my-claudecode:ultrawork "refactor the API layer"          # Maximum parallelism
+/oh-my-claudecode:planner "plan the new dashboard"            # Planning interview
+/oh-my-claudecode:deepsearch "find database schema files"     # Deep search
+/oh-my-claudecode:git-master "commit these changes"           # Git expertise
+/oh-my-claudecode:deepinit ./src                              # Index codebase
+/oh-my-claudecode:analyze "why is this test failing?"         # Deep analysis
 ```
 
 ### After (3.0): Auto-Activation + Keywords
@@ -49,20 +49,20 @@ All 2.x commands continue to work. Here's what changed:
 
 | 2.x Command | 3.0 Equivalent | Works? |
 |-------------|----------------|--------|
-| `/ralph "task"` | Say "don't stop until done" OR use `ralph` keyword | ✅ YES (both ways) |
-| `/ultrawork "task"` | Say "fast" or "parallel" OR use `ulw` keyword | ✅ YES (both ways) |
-| `/ultrawork-ralph` | Say "ralph ulw:" prefix | ✅ YES (keyword combo) |
-| `/planner "task"` | Say "plan this" OR use `plan` keyword | ✅ YES (both ways) |
-| `/plan "description"` | Start planning naturally | ✅ YES |
-| `/review [path]` | Invoke normally | ✅ YES (unchanged) |
-| `/deepsearch "query"` | Say "find" or "search" | ✅ YES (auto-detect) |
-| `/analyze "target"` | Say "analyze" or "investigate" | ✅ YES (auto-detect) |
-| `/deepinit [path]` | Invoke normally | ✅ YES (unchanged) |
-| `/git-master` | Say "git", "commit", "atomic commit" | ✅ YES (auto-detect) |
-| `/frontend-ui-ux` | Say "UI", "styling", "component", "design" | ✅ YES (auto-detect) |
-| `/note "content"` | Say "remember this" or "save this" | ✅ YES (auto-detect) |
-| `/cancel-ralph` | Say "stop", "cancel", or "abort" | ✅ YES (auto-detect) |
-| `/doctor` | Invoke normally | ✅ YES (unchanged) |
+| `/oh-my-claudecode:ralph "task"` | Say "don't stop until done" OR use `ralph` keyword | ✅ YES (both ways) |
+| `/oh-my-claudecode:ultrawork "task"` | Say "fast" or "parallel" OR use `ulw` keyword | ✅ YES (both ways) |
+| `/oh-my-claudecode:ultrawork-ralph` | Say "ralph ulw:" prefix | ✅ YES (keyword combo) |
+| `/oh-my-claudecode:planner "task"` | Say "plan this" OR use `plan` keyword | ✅ YES (both ways) |
+| `/oh-my-claudecode:plan "description"` | Start planning naturally | ✅ YES |
+| `/oh-my-claudecode:review [path]` | Invoke normally | ✅ YES (unchanged) |
+| `/oh-my-claudecode:deepsearch "query"` | Say "find" or "search" | ✅ YES (auto-detect) |
+| `/oh-my-claudecode:analyze "target"` | Say "analyze" or "investigate" | ✅ YES (auto-detect) |
+| `/oh-my-claudecode:deepinit [path]` | Invoke normally | ✅ YES (unchanged) |
+| `/oh-my-claudecode:git-master` | Say "git", "commit", "atomic commit" | ✅ YES (auto-detect) |
+| `/oh-my-claudecode:frontend-ui-ux` | Say "UI", "styling", "component", "design" | ✅ YES (auto-detect) |
+| `/oh-my-claudecode:note "content"` | Say "remember this" or "save this" | ✅ YES (auto-detect) |
+| `/oh-my-claudecode:cancel-ralph` | Say "stop", "cancel", or "abort" | ✅ YES (auto-detect) |
+| `/oh-my-claudecode:doctor` | Invoke normally | ✅ YES (unchanged) |
 | All other commands | Work exactly as before | ✅ YES |
 
 ---
@@ -113,7 +113,7 @@ If in planning       → End planning interview
 If multiple active   → Stop the most recent
 ```
 
-No more `/cancel-ralph` - just say "cancel"!
+No more `/oh-my-claudecode:cancel-ralph` - just say "cancel"!
 
 ---
 
@@ -126,10 +126,10 @@ No more `/cancel-ralph` - just say "cancel"!
 You can still use explicit commands if you prefer:
 
 ```bash
-/ralph "implement OAuth"           # Still works ✅
-/ultrawork "refactor everything"   # Still works ✅
-/planner "plan the feature"        # Still works ✅
-/cancel-ralph                      # Still works ✅
+/oh-my-claudecode:ralph "implement OAuth"           # Still works ✅
+/oh-my-claudecode:ultrawork "refactor everything"   # Still works ✅
+/oh-my-claudecode:planner "plan the feature"        # Still works ✅
+/oh-my-claudecode:cancel-ralph                      # Still works ✅
 ```
 
 These are now **optional** - use them if you like, but you don't have to.
@@ -172,7 +172,7 @@ See [MIGRATION-v3.md](MIGRATION-v3.md) for detailed 2.x → 3.0 naming changes.
 **No commands to memorize.** Work naturally:
 
 ```
-Before: "OK, I need to use /ultrawork for speed..."
+Before: "OK, I need to use /oh-my-claudecode:ultrawork for speed..."
 After:  "I'm in a hurry, go fast!"
         ↓
         Claude: "I'm activating ultrawork mode..."
@@ -194,7 +194,7 @@ Your request              Claude's action
 
 You don't ask for delegation - it happens automatically.
 
-### 3. Learned Skills (`/learner`)
+### 3. Learned Skills (`/oh-my-claudecode:learner`)
 
 Extract reusable insights from problem-solving:
 
@@ -219,7 +219,7 @@ See what Claude is doing in the status bar:
 [OMC] ralph:3/10 | US-002 | ultrawork skill:planner | ctx:67% | agents:2 | todos:2/5
 ```
 
-Run `/hud setup` to install. Presets: minimal, focused, full.
+Run `/oh-my-claudecode:hud setup` to install. Presets: minimal, focused, full.
 
 ### 5. Three-Tier Memory System
 
@@ -233,10 +233,10 @@ Permanently loaded on session start
 Never lost through compaction
 ```
 
-Or use `/note` to save discoveries manually:
+Or use `/oh-my-claudecode:note` to save discoveries manually:
 
 ```bash
-/note Project uses PostgreSQL with Prisma ORM
+/oh-my-claudecode:note Project uses PostgreSQL with Prisma ORM
 ```
 
 ### 6. Structured Task Tracking (PRD Support)
@@ -244,7 +244,7 @@ Or use `/note` to save discoveries manually:
 **Ralph Loop now uses Product Requirements Documents:**
 
 ```bash
-/ralph-init "implement OAuth with multiple providers"
+/oh-my-claudecode:ralph-init "implement OAuth with multiple providers"
     ↓
 Auto-creates PRD with user stories
     ↓
@@ -312,7 +312,7 @@ You're done - Claude handles the rest
 Apply oh-my-claudecode to current project only:
 
 ```
-/omc-default
+/oh-my-claudecode:omc-default
 ```
 
 Creates: `./.claude/CLAUDE.md`
@@ -322,7 +322,7 @@ Creates: `./.claude/CLAUDE.md`
 Apply to all Claude Code sessions:
 
 ```
-/omc-default-global
+/oh-my-claudecode:omc-default-global
 ```
 
 Creates: `~/.claude/CLAUDE.md`
@@ -337,7 +337,7 @@ Creates: `~/.claude/CLAUDE.md`
 
 **2.x Workflow:**
 ```
-/ultrawork "implement the todo list feature"
+/oh-my-claudecode:ultrawork "implement the todo list feature"
 ```
 
 **3.0 Workflow:**
@@ -353,7 +353,7 @@ Claude: "I'm activating ultrawork for maximum parallelism"
 
 **2.x Workflow:**
 ```
-/ralph "debug the memory leak"
+/oh-my-claudecode:ralph "debug the memory leak"
 ```
 
 **3.0 Workflow:**
@@ -369,7 +369,7 @@ Claude: "I'm activating ralph-loop to ensure completion"
 
 **2.x Workflow:**
 ```
-/planner "design the new authentication system"
+/oh-my-claudecode:planner "design the new authentication system"
 ```
 
 **3.0 Workflow:**
@@ -387,7 +387,7 @@ Interview begins automatically
 
 **2.x Workflow:**
 ```
-/cancel-ralph
+/oh-my-claudecode:cancel-ralph
 ```
 
 **3.0 Workflow:**
@@ -421,10 +421,10 @@ A: No. Keywords are optional shortcuts. Claude auto-detects intent without them.
 A: No. All 2.x commands continue to work exactly as before.
 
 **Q: What if I like explicit commands?**
-A: Keep using them! `/ralph`, `/ultrawork`, `/planner` all still work.
+A: Keep using them! `/oh-my-claudecode:ralph`, `/oh-my-claudecode:ultrawork`, `/oh-my-claudecode:planner` all still work.
 
 **Q: How do I know what Claude is doing?**
-A: Claude announces major behaviors: "I'm activating ralph-loop..." or set up `/hud` for real-time status.
+A: Claude announces major behaviors: "I'm activating ralph-loop..." or set up `/oh-my-claudecode:hud` for real-time status.
 
 **Q: Where's the old command list?**
 A: See [README.md](../README.md) for full command reference. All commands still work.
@@ -436,9 +436,9 @@ A: Keywords are explicit shortcuts. Natural language triggers auto-detection. Bo
 
 ## Need Help?
 
-- **Diagnose issues**: Run `/doctor`
+- **Diagnose issues**: Run `/oh-my-claudecode:doctor`
 - **See all commands**: Run `/oh-my-claudecode:help`
-- **View real-time status**: Run `/hud setup`
+- **View real-time status**: Run `/oh-my-claudecode:hud setup`
 - **Review detailed changelog**: See [CHANGELOG.md](../CHANGELOG.md)
 - **Report bugs**: [GitHub Issues](https://github.com/Yeachan-Heo/oh-my-claude-sisyphus/issues)
 

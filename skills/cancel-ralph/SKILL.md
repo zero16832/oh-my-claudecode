@@ -35,9 +35,9 @@ After running this command, you are free to stop working. The persistent mode ho
 
 ## Note on Linked Modes
 
-Since v3.0, Ralph automatically activates Ultrawork for parallel execution. When you cancel Ralph, the linked Ultrawork is also cancelled. If you started Ultrawork separately (not via Ralph), use `/cancel-ultrawork` to cancel it independently.
+Since v3.0, Ralph automatically activates Ultrawork for parallel execution. When you cancel Ralph, the linked Ultrawork is also cancelled. If you started Ultrawork separately (not via Ralph), use `/oh-my-claudecode:cancel-ultrawork` to cancel it independently.
 
 ## To Start Fresh
 
-- `/ralph "task"` - Start ralph with ultrawork (default)
-- `/ultrawork "task"` - Start ultrawork only (standalone)
+- `/oh-my-claudecode:ralph "task"` - Start ralph with ultrawork (default)
+- `/oh-my-claudecode:ultrawork "task"` - Start ultrawork only (standalone)
