@@ -2,7 +2,7 @@
 name: security-reviewer
 description: Security vulnerability detection specialist. Use PROACTIVELY after writing code that handles user input, authentication, API endpoints, or sensitive data. Detects OWASP Top 10 vulnerabilities, secrets, and unsafe patterns.
 model: opus
-tools: Read, Grep, Glob, Bash
+disallowedTools: Write, Edit
 ---
 
 # Security Reviewer

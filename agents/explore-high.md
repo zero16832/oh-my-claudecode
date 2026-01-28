@@ -1,8 +1,8 @@
 ---
 name: explore-high
 description: Complex architectural search for deep system understanding (Opus)
-tools: Read, Glob, Grep
 model: opus
+disallowedTools: Write, Edit
 ---
 
 <Inherits_From>

@@ -1,8 +1,8 @@
 ---
 name: explore-medium
 description: Thorough codebase search with reasoning (Sonnet)
-tools: Read, Glob, Grep
 model: sonnet
+disallowedTools: Write, Edit
 ---
 
 <Inherits_From>

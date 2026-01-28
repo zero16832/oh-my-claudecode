@@ -5,13 +5,8 @@
  * Supports auto-detection and installation hints.
  */
 
-import { execFileSync } from 'child_process';
+import { execSync } from 'child_process';
 import { extname } from 'path';
-
-/**
- * Timeout for which/where command existence checks (ms)
- */
-const COMMAND_EXISTS_TIMEOUT_MS = 5000;
 
 export interface LspServerConfig {
   name: string;
@@ -95,103 +90,16 @@ export const LSP_SERVERS: Record<string, LspServerConfig> = {
     args: ['--stdio'],
     extensions: ['.yaml', '.yml'],
     installHint: 'npm install -g yaml-language-server'
-  },
-  ruby: {
-    name: 'Solargraph',
-    command: 'solargraph',
-    args: ['stdio'],
-    extensions: ['.rb', '.rake', '.gemspec'],
-    installHint: 'gem install solargraph'
-  },
-  php: {
-    name: 'Intelephense',
-    command: 'intelephense',
-    args: ['--stdio'],
-    extensions: ['.php', '.phtml'],
-    installHint: 'npm install -g intelephense'
-  },
-  lua: {
-    name: 'Lua Language Server',
-    command: 'lua-language-server',
-    args: [],
-    extensions: ['.lua'],
-    installHint: 'brew install lua-language-server (or see https://github.com/LuaLS/lua-language-server)'
-  },
-  bash: {
-    name: 'Bash Language Server',
-    command: 'bash-language-server',
-    args: ['start'],
-    extensions: ['.sh', '.bash', '.zsh'],
-    installHint: 'npm install -g bash-language-server'
-  },
-  elixir: {
-    name: 'Elixir LS',
-    command: 'elixir-ls',
-    args: [],
-    extensions: ['.ex', '.exs'],
-    installHint: 'See https://github.com/elixir-lsp/elixir-ls - user may need to create wrapper script "elixir-ls" that calls language_server.sh'
-  },
-  kotlin: {
-    name: 'Kotlin Language Server',
-    command: 'kotlin-language-server',
-    args: [],
-    extensions: ['.kt', '.kts'],
-    installHint: 'See https://github.com/fwcd/kotlin-language-server'
-  },
-  swift: {
-    name: 'SourceKit-LSP',
-    command: 'sourcekit-lsp',
-    args: [],
-    extensions: ['.swift'],
-    installHint: 'Included with Xcode or Swift toolchain'
-  },
-  csharp: {
-    name: 'OmniSharp / csharp-ls',
-    command: 'omnisharp',
-    args: ['-lsp'],
-    extensions: ['.cs'],
-    installHint: 'Option 1: dotnet tool install --global csharp-ls (simpler). Option 2: See https://github.com/OmniSharp/omnisharp-roslyn'
-  },
-  scala: {
-    name: 'Metals',
-    command: 'metals',
-    args: [],
-    extensions: ['.scala', '.sc', '.sbt'],
-    installHint: 'cs install metals (requires Coursier)'
-  },
-  zig: {
-    name: 'ZLS',
-    command: 'zls',
-    args: [],
-    extensions: ['.zig'],
-    installHint: 'See https://github.com/zigtools/zls'
-  },
-  haskell: {
-    name: 'Haskell Language Server',
-    command: 'haskell-language-server-wrapper',
-    args: ['--lsp'],
-    extensions: ['.hs', '.lhs'],
-    installHint: 'ghcup install hls'
   }
 };
 
 /**
  * Check if a command exists in PATH
- *
- * Uses execFileSync with array arguments to prevent shell injection.
- * Input validation rejects command names with shell metacharacters.
  */
 export function commandExists(command: string): boolean {
-  // Input validation - only allow safe command names (alphanumeric, dot, underscore, hyphen)
-  if (!command || !/^[a-zA-Z][a-zA-Z0-9._-]*$/.test(command)) {
-    return false;
-  }
   try {
     const checkCommand = process.platform === 'win32' ? 'where' : 'which';
-    execFileSync(checkCommand, [command], {
-      stdio: 'ignore',
-      timeout: COMMAND_EXISTS_TIMEOUT_MS
-    });
+    execSync(`${checkCommand} ${command}`, { stdio: 'ignore' });
     return true;
   } catch {
     return false;
@@ -204,7 +112,7 @@ export function commandExists(command: string): boolean {
 export function getServerForFile(filePath: string): LspServerConfig | null {
   const ext = extname(filePath).toLowerCase();
 
-  for (const config of Object.values(LSP_SERVERS)) {
+  for (const [_, config] of Object.entries(LSP_SERVERS)) {
     if (config.extensions.includes(ext)) {
       return config;
     }
@@ -246,23 +154,7 @@ export function getServerForLanguage(language: string): LspServerConfig | null {
     'css': 'css',
     'scss': 'css',
     'less': 'css',
-    'yaml': 'yaml',
-    'ruby': 'ruby',
-    'php': 'php',
-    'lua': 'lua',
-    'bash': 'bash',
-    'shell': 'bash',
-    'sh': 'bash',
-    'shellscript': 'bash',
-    'elixir': 'elixir',
-    'kotlin': 'kotlin',
-    'swift': 'swift',
-    'csharp': 'csharp',
-    'c#': 'csharp',
-    'scala': 'scala',
-    'zig': 'zig',
-    'haskell': 'haskell',
-    'hs': 'haskell'
+    'yaml': 'yaml'
   };
 
   const serverKey = langMap[language.toLowerCase()];

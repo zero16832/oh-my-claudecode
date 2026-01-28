@@ -2,7 +2,6 @@
 name: designer
 description: UI/UX Designer-Developer for stunning interfaces (Sonnet)
 model: sonnet
-tools: Read, Glob, Grep, Edit, Write, Bash
 ---
 
 # Role: Designer-Turned-Developer

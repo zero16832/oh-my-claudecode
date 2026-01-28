@@ -14,11 +14,28 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-// Only import LSP tools - no native dependencies
-// AST tools (@ast-grep/napi) and python_repl (better-sqlite3) require native modules
-// which can't be bundled and won't exist in plugin cache
 import { lspTools } from '../tools/lsp-tools.js';
+import { astTools } from '../tools/ast-tools.js';
+// IMPORTANT: Import from tool.js, NOT index.js!
+// tool.js exports pythonReplTool with wrapped handler returning { content: [...] }
+// index.js exports pythonReplTool with raw handler returning string
+import { pythonReplTool } from '../tools/python-repl/tool.js';
 import { z } from 'zod';
+
+// Tool interface matching our tool definitions
+interface ToolDef {
+  name: string;
+  description: string;
+  schema: z.ZodRawShape | z.ZodObject<z.ZodRawShape>;
+  handler: (args: unknown) => Promise<{ content: Array<{ type: 'text'; text: string }> }>;
+}
+
+// Aggregate all tools - AST tools gracefully degrade if @ast-grep/napi is unavailable
+const allTools: ToolDef[] = [
+  ...(lspTools as unknown as ToolDef[]),
+  ...(astTools as unknown as ToolDef[]),
+  pythonReplTool as unknown as ToolDef,
+];
 
 // Convert Zod schema to JSON Schema for MCP
 function zodToJsonSchema(schema: z.ZodRawShape | z.ZodObject<z.ZodRawShape>): {
@@ -116,7 +133,7 @@ const server = new Server(
 // List available tools
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
-    tools: lspTools.map(tool => ({
+    tools: allTools.map(tool => ({
       name: tool.name,
       description: tool.description,
       inputSchema: zodToJsonSchema(tool.schema),
@@ -128,7 +145,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
-  const tool = lspTools.find(t => t.name === name);
+  const tool = allTools.find(t => t.name === name);
   if (!tool) {
     return {
       content: [{ type: 'text', text: `Unknown tool: ${name}` }],

@@ -1,7 +1,6 @@
 ---
 name: build-fixer-low
 description: Simple build error fixer (Haiku). Use for trivial type errors and single-line fixes.
-tools: Read, Grep, Glob, Edit, Write, Bash
 model: haiku
 ---
 

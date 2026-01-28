@@ -407,11 +407,11 @@ var require_codegen = __commonJS({
         const rhs = this.rhs === void 0 ? "" : ` = ${this.rhs}`;
         return `${varKind} ${this.name}${rhs};` + _n;
       }
-      optimizeNames(names, constants) {
+      optimizeNames(names, constants2) {
         if (!names[this.name.str])
           return;
         if (this.rhs)
-          this.rhs = optimizeExpr(this.rhs, names, constants);
+          this.rhs = optimizeExpr(this.rhs, names, constants2);
         return this;
       }
       get names() {
@@ -428,10 +428,10 @@ var require_codegen = __commonJS({
       render({ _n }) {
         return `${this.lhs} = ${this.rhs};` + _n;
       }
-      optimizeNames(names, constants) {
+      optimizeNames(names, constants2) {
         if (this.lhs instanceof code_1.Name && !names[this.lhs.str] && !this.sideEffects)
           return;
-        this.rhs = optimizeExpr(this.rhs, names, constants);
+        this.rhs = optimizeExpr(this.rhs, names, constants2);
         return this;
       }
       get names() {
@@ -492,8 +492,8 @@ var require_codegen = __commonJS({
       optimizeNodes() {
         return `${this.code}` ? this : void 0;
       }
-      optimizeNames(names, constants) {
-        this.code = optimizeExpr(this.code, names, constants);
+      optimizeNames(names, constants2) {
+        this.code = optimizeExpr(this.code, names, constants2);
         return this;
       }
       get names() {
@@ -522,12 +522,12 @@ var require_codegen = __commonJS({
         }
         return nodes.length > 0 ? this : void 0;
       }
-      optimizeNames(names, constants) {
+      optimizeNames(names, constants2) {
         const { nodes } = this;
         let i = nodes.length;
         while (i--) {
           const n = nodes[i];
-          if (n.optimizeNames(names, constants))
+          if (n.optimizeNames(names, constants2))
             continue;
           subtractNames(names, n.names);
           nodes.splice(i, 1);
@@ -580,12 +580,12 @@ var require_codegen = __commonJS({
           return void 0;
         return this;
       }
-      optimizeNames(names, constants) {
+      optimizeNames(names, constants2) {
         var _a;
-        this.else = (_a = this.else) === null || _a === void 0 ? void 0 : _a.optimizeNames(names, constants);
-        if (!(super.optimizeNames(names, constants) || this.else))
+        this.else = (_a = this.else) === null || _a === void 0 ? void 0 : _a.optimizeNames(names, constants2);
+        if (!(super.optimizeNames(names, constants2) || this.else))
           return;
-        this.condition = optimizeExpr(this.condition, names, constants);
+        this.condition = optimizeExpr(this.condition, names, constants2);
         return this;
       }
       get names() {
@@ -608,10 +608,10 @@ var require_codegen = __commonJS({
       render(opts) {
         return `for(${this.iteration})` + super.render(opts);
       }
-      optimizeNames(names, constants) {
-        if (!super.optimizeNames(names, constants))
+      optimizeNames(names, constants2) {
+        if (!super.optimizeNames(names, constants2))
           return;
-        this.iteration = optimizeExpr(this.iteration, names, constants);
+        this.iteration = optimizeExpr(this.iteration, names, constants2);
         return this;
       }
       get names() {
@@ -647,10 +647,10 @@ var require_codegen = __commonJS({
       render(opts) {
         return `for(${this.varKind} ${this.name} ${this.loop} ${this.iterable})` + super.render(opts);
       }
-      optimizeNames(names, constants) {
-        if (!super.optimizeNames(names, constants))
+      optimizeNames(names, constants2) {
+        if (!super.optimizeNames(names, constants2))
           return;
-        this.iterable = optimizeExpr(this.iterable, names, constants);
+        this.iterable = optimizeExpr(this.iterable, names, constants2);
         return this;
       }
       get names() {
@@ -692,11 +692,11 @@ var require_codegen = __commonJS({
         (_b = this.finally) === null || _b === void 0 ? void 0 : _b.optimizeNodes();
         return this;
       }
-      optimizeNames(names, constants) {
+      optimizeNames(names, constants2) {
         var _a, _b;
-        super.optimizeNames(names, constants);
-        (_a = this.catch) === null || _a === void 0 ? void 0 : _a.optimizeNames(names, constants);
-        (_b = this.finally) === null || _b === void 0 ? void 0 : _b.optimizeNames(names, constants);
+        super.optimizeNames(names, constants2);
+        (_a = this.catch) === null || _a === void 0 ? void 0 : _a.optimizeNames(names, constants2);
+        (_b = this.finally) === null || _b === void 0 ? void 0 : _b.optimizeNames(names, constants2);
         return this;
       }
       get names() {
@@ -997,7 +997,7 @@ var require_codegen = __commonJS({
     function addExprNames(names, from) {
       return from instanceof code_1._CodeOrName ? addNames(names, from.names) : names;
     }
-    function optimizeExpr(expr, names, constants) {
+    function optimizeExpr(expr, names, constants2) {
       if (expr instanceof code_1.Name)
         return replaceName(expr);
       if (!canOptimize(expr))
@@ -1012,14 +1012,14 @@ var require_codegen = __commonJS({
         return items;
       }, []));
       function replaceName(n) {
-        const c = constants[n.str];
+        const c = constants2[n.str];
         if (c === void 0 || names[n.str] !== 1)
           return n;
         delete names[n.str];
         return c;
       }
       function canOptimize(e) {
-        return e instanceof code_1._Code && e._items.some((c) => c instanceof code_1.Name && names[c.str] === 1 && constants[c.str] !== void 0);
+        return e instanceof code_1._Code && e._items.some((c) => c instanceof code_1.Name && names[c.str] === 1 && constants2[c.str] !== void 0);
       }
     }
     function subtractNames(names, from) {
@@ -2981,7 +2981,7 @@ var require_compile = __commonJS({
       const schOrFunc = root.refs[ref];
       if (schOrFunc)
         return schOrFunc;
-      let _sch = resolve2.call(this, root, ref);
+      let _sch = resolve4.call(this, root, ref);
       if (_sch === void 0) {
         const schema = (_a = root.localRefs) === null || _a === void 0 ? void 0 : _a[ref];
         const { schemaId } = this.opts;
@@ -3008,7 +3008,7 @@ var require_compile = __commonJS({
     function sameSchemaEnv(s1, s2) {
       return s1.schema === s2.schema && s1.root === s2.root && s1.baseId === s2.baseId;
     }
-    function resolve2(root, ref) {
+    function resolve4(root, ref) {
       let sch;
       while (typeof (sch = this.refs[ref]) == "string")
         ref = sch;
@@ -3223,8 +3223,8 @@ var require_utils = __commonJS({
       }
       return ind;
     }
-    function removeDotSegments(path) {
-      let input = path;
+    function removeDotSegments(path6) {
+      let input = path6;
       const output = [];
       let nextSlash = -1;
       let len = 0;
@@ -3423,8 +3423,8 @@ var require_schemes = __commonJS({
         wsComponent.secure = void 0;
       }
       if (wsComponent.resourceName) {
-        const [path, query] = wsComponent.resourceName.split("?");
-        wsComponent.path = path && path !== "/" ? path : void 0;
+        const [path6, query] = wsComponent.resourceName.split("?");
+        wsComponent.path = path6 && path6 !== "/" ? path6 : void 0;
         wsComponent.query = query;
         wsComponent.resourceName = void 0;
       }
@@ -3576,24 +3576,24 @@ var require_fast_uri = __commonJS({
     function normalize(uri, options) {
       if (typeof uri === "string") {
         uri = /** @type {T} */
-        serialize(parse4(uri, options), options);
+        serialize(parse5(uri, options), options);
       } else if (typeof uri === "object") {
         uri = /** @type {T} */
-        parse4(serialize(uri, options), options);
+        parse5(serialize(uri, options), options);
       }
       return uri;
     }
-    function resolve2(baseURI, relativeURI, options) {
+    function resolve4(baseURI, relativeURI, options) {
       const schemelessOptions = options ? Object.assign({ scheme: "null" }, options) : { scheme: "null" };
-      const resolved = resolveComponent(parse4(baseURI, schemelessOptions), parse4(relativeURI, schemelessOptions), schemelessOptions, true);
+      const resolved = resolveComponent(parse5(baseURI, schemelessOptions), parse5(relativeURI, schemelessOptions), schemelessOptions, true);
       schemelessOptions.skipEscape = true;
       return serialize(resolved, schemelessOptions);
     }
     function resolveComponent(base, relative, options, skipNormalization) {
       const target = {};
       if (!skipNormalization) {
-        base = parse4(serialize(base, options), options);
-        relative = parse4(serialize(relative, options), options);
+        base = parse5(serialize(base, options), options);
+        relative = parse5(serialize(relative, options), options);
       }
       options = options || {};
       if (!options.tolerant && relative.scheme) {
@@ -3645,13 +3645,13 @@ var require_fast_uri = __commonJS({
     function equal(uriA, uriB, options) {
       if (typeof uriA === "string") {
         uriA = unescape(uriA);
-        uriA = serialize(normalizeComponentEncoding(parse4(uriA, options), true), { ...options, skipEscape: true });
+        uriA = serialize(normalizeComponentEncoding(parse5(uriA, options), true), { ...options, skipEscape: true });
       } else if (typeof uriA === "object") {
         uriA = serialize(normalizeComponentEncoding(uriA, true), { ...options, skipEscape: true });
       }
       if (typeof uriB === "string") {
         uriB = unescape(uriB);
-        uriB = serialize(normalizeComponentEncoding(parse4(uriB, options), true), { ...options, skipEscape: true });
+        uriB = serialize(normalizeComponentEncoding(parse5(uriB, options), true), { ...options, skipEscape: true });
       } else if (typeof uriB === "object") {
         uriB = serialize(normalizeComponentEncoding(uriB, true), { ...options, skipEscape: true });
       }
@@ -3720,7 +3720,7 @@ var require_fast_uri = __commonJS({
       return uriTokens.join("");
     }
     var URI_PARSE = /^(?:([^#/:?]+):)?(?:\/\/((?:([^#/?@]*)@)?(\[[^#/?\]]+\]|[^#/:?]*)(?::(\d*))?))?([^#?]*)(?:\?([^#]*))?(?:#((?:.|[\n\r])*))?/u;
-    function parse4(uri, opts) {
+    function parse5(uri, opts) {
       const options = Object.assign({}, opts);
       const parsed = {
         scheme: void 0,
@@ -3810,11 +3810,11 @@ var require_fast_uri = __commonJS({
     var fastUri = {
       SCHEMES,
       normalize,
-      resolve: resolve2,
+      resolve: resolve4,
       resolveComponent,
       equal,
       serialize,
-      parse: parse4
+      parse: parse5
     };
     module2.exports = fastUri;
     module2.exports.default = fastUri;
@@ -6777,12 +6777,12 @@ var require_dist = __commonJS({
         throw new Error(`Unknown format "${name}"`);
       return f;
     };
-    function addFormats(ajv, list, fs, exportName) {
+    function addFormats(ajv, list, fs5, exportName) {
       var _a;
       var _b;
       (_a = (_b = ajv.opts.code).formats) !== null && _a !== void 0 ? _a : _b.formats = (0, codegen_1._)`require("ajv-formats/dist/formats").${exportName}`;
       for (const f of list)
-        ajv.addFormat(f, fs[f]);
+        ajv.addFormat(f, fs5[f]);
     }
     module2.exports = exports2 = formatsPlugin;
     Object.defineProperty(exports2, "__esModule", { value: true });
@@ -7268,8 +7268,8 @@ function getErrorMap() {
 
 // node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
-  const { data, path, errorMaps, issueData } = params;
-  const fullPath = [...path, ...issueData.path || []];
+  const { data, path: path6, errorMaps, issueData } = params;
+  const fullPath = [...path6, ...issueData.path || []];
   const fullIssue = {
     ...issueData,
     path: fullPath
@@ -7385,11 +7385,11 @@ var errorUtil;
 
 // node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
-  constructor(parent, value, path, key) {
+  constructor(parent, value, path6, key) {
     this._cachedPath = [];
     this.parent = parent;
     this.data = value;
-    this._path = path;
+    this._path = path6;
     this._key = key;
   }
   get path() {
@@ -11026,10 +11026,10 @@ function assignProp(target, prop, value) {
     configurable: true
   });
 }
-function getElementAtPath(obj, path) {
-  if (!path)
+function getElementAtPath(obj, path6) {
+  if (!path6)
     return obj;
-  return path.reduce((acc, key) => acc?.[key], obj);
+  return path6.reduce((acc, key) => acc?.[key], obj);
 }
 function promiseAllObject(promisesObj) {
   const keys = Object.keys(promisesObj);
@@ -11349,11 +11349,11 @@ function aborted(x, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues(path, issues) {
+function prefixIssues(path6, issues) {
   return issues.map((iss) => {
     var _a;
     (_a = iss).path ?? (_a.path = []);
-    iss.path.unshift(path);
+    iss.path.unshift(path6);
     return iss;
   });
 }
@@ -16640,7 +16640,7 @@ var Protocol = class {
           return;
         }
         const pollInterval = task2.pollInterval ?? this._options?.defaultTaskPollInterval ?? 1e3;
-        await new Promise((resolve2) => setTimeout(resolve2, pollInterval));
+        await new Promise((resolve4) => setTimeout(resolve4, pollInterval));
         options?.signal?.throwIfAborted();
       }
     } catch (error2) {
@@ -16657,7 +16657,7 @@ var Protocol = class {
    */
   request(request, resultSchema, options) {
     const { relatedRequestId, resumptionToken, onresumptiontoken, task, relatedTask } = options ?? {};
-    return new Promise((resolve2, reject) => {
+    return new Promise((resolve4, reject) => {
       const earlyReject = (error2) => {
         reject(error2);
       };
@@ -16735,7 +16735,7 @@ var Protocol = class {
           if (!parseResult.success) {
             reject(parseResult.error);
           } else {
-            resolve2(parseResult.data);
+            resolve4(parseResult.data);
           }
         } catch (error2) {
           reject(error2);
@@ -16996,12 +16996,12 @@ var Protocol = class {
       }
     } catch {
     }
-    return new Promise((resolve2, reject) => {
+    return new Promise((resolve4, reject) => {
       if (signal.aborted) {
         reject(new McpError(ErrorCode.InvalidRequest, "Request cancelled"));
         return;
       }
-      const timeoutId = setTimeout(resolve2, interval);
+      const timeoutId = setTimeout(resolve4, interval);
       signal.addEventListener("abort", () => {
         clearTimeout(timeoutId);
         reject(new McpError(ErrorCode.InvalidRequest, "Request cancelled"));
@@ -17730,12 +17730,12 @@ var StdioServerTransport = class {
     this.onclose?.();
   }
   send(message) {
-    return new Promise((resolve2) => {
+    return new Promise((resolve4) => {
       const json = serializeMessage(message);
       if (this._stdout.write(json)) {
-        resolve2();
+        resolve4();
       } else {
-        this._stdout.once("drain", resolve2);
+        this._stdout.once("drain", resolve4);
       }
     });
   }
@@ -17874,7 +17874,7 @@ var LspClient = class {
 Install with: ${this.serverConfig.installHint}`
       );
     }
-    return new Promise((resolve2, reject) => {
+    return new Promise((resolve4, reject) => {
       this.process = (0, import_child_process2.spawn)(this.serverConfig.command, this.serverConfig.args, {
         cwd: this.workspaceRoot,
         stdio: ["pipe", "pipe", "pipe"]
@@ -17897,7 +17897,7 @@ Install with: ${this.serverConfig.installHint}`
       });
       this.initialize().then(() => {
         this.initialized = true;
-        resolve2();
+        resolve4();
       }).catch(reject);
     });
   }
@@ -17993,13 +17993,13 @@ Install with: ${this.serverConfig.installHint}`
     const message = `Content-Length: ${Buffer.byteLength(content)}\r
 \r
 ${content}`;
-    return new Promise((resolve2, reject) => {
+    return new Promise((resolve4, reject) => {
       const timeoutHandle = setTimeout(() => {
         this.pendingRequests.delete(id);
         reject(new Error(`LSP request '${method}' timed out after ${timeout}ms`));
       }, timeout);
       this.pendingRequests.set(id, {
-        resolve: resolve2,
+        resolve: resolve4,
         reject,
         timeout: timeoutHandle
       });
@@ -18068,7 +18068,7 @@ ${content}`;
       }
     });
     this.openDocuments.add(uri);
-    await new Promise((resolve2) => setTimeout(resolve2, 100));
+    await new Promise((resolve4) => setTimeout(resolve4, 100));
   }
   /**
    * Close a document
@@ -18320,9 +18320,9 @@ function formatRange(range) {
   return start === end ? start : `${start}-${end}`;
 }
 function formatLocation(location) {
-  const path = uriToPath(location.uri);
+  const path6 = uriToPath(location.uri);
   const range = formatRange(location.range);
-  return `${path}:${range}`;
+  return `${path6}:${range}`;
 }
 function formatHover(hover) {
   if (!hover) return "No hover information available";
@@ -18408,8 +18408,8 @@ function formatWorkspaceEdit(edit) {
   const lines = [];
   if (edit.changes) {
     for (const [uri, changes] of Object.entries(edit.changes)) {
-      const path = uriToPath(uri);
-      lines.push(`File: ${path}`);
+      const path6 = uriToPath(uri);
+      lines.push(`File: ${path6}`);
       for (const change of changes) {
         const range = formatRange(change.range);
         const preview = change.newText.length > 50 ? change.newText.slice(0, 50) + "..." : change.newText;
@@ -18419,8 +18419,8 @@ function formatWorkspaceEdit(edit) {
   }
   if (edit.documentChanges) {
     for (const docChange of edit.documentChanges) {
-      const path = uriToPath(docChange.textDocument.uri);
-      lines.push(`File: ${path}`);
+      const path6 = uriToPath(docChange.textDocument.uri);
+      lines.push(`File: ${path6}`);
       for (const change of docChange.edits) {
         const range = formatRange(change.range);
         const preview = change.newText.length > 50 ? change.newText.slice(0, 50) + "..." : change.newText;
@@ -18549,7 +18549,7 @@ async function runLspAggregatedDiagnostics(directory, extensions = [".ts", ".tsx
         continue;
       }
       await client.openDocument(file);
-      await new Promise((resolve2) => setTimeout(resolve2, LSP_DIAGNOSTICS_WAIT_MS));
+      await new Promise((resolve4) => setTimeout(resolve4, LSP_DIAGNOSTICS_WAIT_MS));
       const diagnostics = client.getDiagnostics(file);
       for (const diagnostic of diagnostics) {
         allDiagnostics.push({
@@ -18799,7 +18799,7 @@ var lspDiagnosticsTool = {
     const { file, severity } = args;
     return withLspClient(file, "diagnostics", async (client) => {
       await client.openDocument(file);
-      await new Promise((resolve2) => setTimeout(resolve2, LSP_DIAGNOSTICS_WAIT_MS));
+      await new Promise((resolve4) => setTimeout(resolve4, LSP_DIAGNOSTICS_WAIT_MS));
       let diagnostics = client.getDiagnostics(file);
       if (severity) {
         const severityMap = {
@@ -19026,7 +19026,1816 @@ var lspTools = [
   lspCodeActionResolveTool
 ];
 
+// src/tools/ast-tools.ts
+var import_fs5 = require("fs");
+var import_path6 = require("path");
+var sgModule = null;
+var sgLoadFailed = false;
+var sgLoadError = "";
+async function getSgModule() {
+  if (sgLoadFailed) {
+    return null;
+  }
+  if (!sgModule) {
+    try {
+      sgModule = await import("@ast-grep/napi");
+    } catch (error2) {
+      sgLoadFailed = true;
+      sgLoadError = error2 instanceof Error ? error2.message : String(error2);
+      return null;
+    }
+  }
+  return sgModule;
+}
+function toLangEnum(sg, language) {
+  const langMap = {
+    javascript: sg.Lang.JavaScript,
+    typescript: sg.Lang.TypeScript,
+    tsx: sg.Lang.Tsx,
+    python: sg.Lang.Python,
+    ruby: sg.Lang.Ruby,
+    go: sg.Lang.Go,
+    rust: sg.Lang.Rust,
+    java: sg.Lang.Java,
+    kotlin: sg.Lang.Kotlin,
+    swift: sg.Lang.Swift,
+    c: sg.Lang.C,
+    cpp: sg.Lang.Cpp,
+    csharp: sg.Lang.CSharp,
+    html: sg.Lang.Html,
+    css: sg.Lang.Css,
+    json: sg.Lang.Json,
+    yaml: sg.Lang.Yaml
+  };
+  const lang = langMap[language];
+  if (!lang) {
+    throw new Error(`Unsupported language: ${language}`);
+  }
+  return lang;
+}
+var SUPPORTED_LANGUAGES = [
+  "javascript",
+  "typescript",
+  "tsx",
+  "python",
+  "ruby",
+  "go",
+  "rust",
+  "java",
+  "kotlin",
+  "swift",
+  "c",
+  "cpp",
+  "csharp",
+  "html",
+  "css",
+  "json",
+  "yaml"
+];
+var EXT_TO_LANG = {
+  ".js": "javascript",
+  ".mjs": "javascript",
+  ".cjs": "javascript",
+  ".jsx": "javascript",
+  ".ts": "typescript",
+  ".mts": "typescript",
+  ".cts": "typescript",
+  ".tsx": "tsx",
+  ".py": "python",
+  ".rb": "ruby",
+  ".go": "go",
+  ".rs": "rust",
+  ".java": "java",
+  ".kt": "kotlin",
+  ".kts": "kotlin",
+  ".swift": "swift",
+  ".c": "c",
+  ".h": "c",
+  ".cpp": "cpp",
+  ".cc": "cpp",
+  ".cxx": "cpp",
+  ".hpp": "cpp",
+  ".cs": "csharp",
+  ".html": "html",
+  ".htm": "html",
+  ".css": "css",
+  ".json": "json",
+  ".yaml": "yaml",
+  ".yml": "yaml"
+};
+function getFilesForLanguage(dirPath, language, maxFiles = 1e3) {
+  const files = [];
+  const extensions = Object.entries(EXT_TO_LANG).filter(([_, lang]) => lang === language).map(([ext]) => ext);
+  function walk(dir) {
+    if (files.length >= maxFiles) return;
+    try {
+      const entries = (0, import_fs5.readdirSync)(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (files.length >= maxFiles) return;
+        const fullPath = (0, import_path6.join)(dir, entry.name);
+        if (entry.isDirectory()) {
+          if (![
+            "node_modules",
+            ".git",
+            "dist",
+            "build",
+            "__pycache__",
+            ".venv",
+            "venv"
+          ].includes(entry.name)) {
+            walk(fullPath);
+          }
+        } else if (entry.isFile()) {
+          const ext = (0, import_path6.extname)(entry.name).toLowerCase();
+          if (extensions.includes(ext)) {
+            files.push(fullPath);
+          }
+        }
+      }
+    } catch {
+    }
+  }
+  const resolvedPath = (0, import_path6.resolve)(dirPath);
+  const stat = (0, import_fs5.statSync)(resolvedPath);
+  if (stat.isFile()) {
+    return [resolvedPath];
+  }
+  walk(resolvedPath);
+  return files;
+}
+function formatMatch(filePath, matchText, startLine, endLine, context, fileContent) {
+  const lines = fileContent.split("\n");
+  const contextStart = Math.max(0, startLine - context - 1);
+  const contextEnd = Math.min(lines.length, endLine + context);
+  const contextLines = lines.slice(contextStart, contextEnd);
+  const numberedLines = contextLines.map((line, i) => {
+    const lineNum = contextStart + i + 1;
+    const isMatch = lineNum >= startLine && lineNum <= endLine;
+    const prefix = isMatch ? ">" : " ";
+    return `${prefix} ${lineNum.toString().padStart(4)}: ${line}`;
+  });
+  return `${filePath}:${startLine}
+${numberedLines.join("\n")}`;
+}
+var astGrepSearchTool = {
+  name: "ast_grep_search",
+  description: `Search for code patterns using AST matching. More precise than text search.
+
+Use meta-variables in patterns:
+- $NAME - matches any single AST node (identifier, expression, etc.)
+- $$$ARGS - matches multiple nodes (for function arguments, list items, etc.)
+
+Examples:
+- "function $NAME($$$ARGS)" - find all function declarations
+- "console.log($MSG)" - find all console.log calls
+- "if ($COND) { $$$BODY }" - find all if statements
+- "$X === null" - find null equality checks
+- "import $$$IMPORTS from '$MODULE'" - find imports
+
+Note: Patterns must be valid AST nodes for the language.`,
+  schema: {
+    pattern: external_exports.string().describe("AST pattern with meta-variables ($VAR, $$$VARS)"),
+    language: external_exports.enum(SUPPORTED_LANGUAGES).describe("Programming language"),
+    path: external_exports.string().optional().describe("Directory or file to search (default: current directory)"),
+    context: external_exports.number().int().min(0).max(10).optional().describe("Lines of context around matches (default: 2)"),
+    maxResults: external_exports.number().int().min(1).max(100).optional().describe("Maximum results to return (default: 20)")
+  },
+  handler: async (args) => {
+    const {
+      pattern,
+      language,
+      path: path6 = ".",
+      context = 2,
+      maxResults = 20
+    } = args;
+    try {
+      const sg = await getSgModule();
+      if (!sg) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `@ast-grep/napi is not available. Install it with: npm install -g @ast-grep/napi
+Error: ${sgLoadError}`
+            }
+          ]
+        };
+      }
+      const files = getFilesForLanguage(path6, language);
+      if (files.length === 0) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `No ${language} files found in ${path6}`
+            }
+          ]
+        };
+      }
+      const results = [];
+      let totalMatches = 0;
+      for (const filePath of files) {
+        if (totalMatches >= maxResults) break;
+        try {
+          const content = (0, import_fs5.readFileSync)(filePath, "utf-8");
+          const root = sg.parse(toLangEnum(sg, language), content).root();
+          const matches = root.findAll(pattern);
+          for (const match of matches) {
+            if (totalMatches >= maxResults) break;
+            const range = match.range();
+            const startLine = range.start.line + 1;
+            const endLine = range.end.line + 1;
+            results.push(
+              formatMatch(
+                filePath,
+                match.text(),
+                startLine,
+                endLine,
+                context,
+                content
+              )
+            );
+            totalMatches++;
+          }
+        } catch {
+        }
+      }
+      if (results.length === 0) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `No matches found for pattern: ${pattern}
+
+Searched ${files.length} ${language} file(s) in ${path6}
+
+Tip: Ensure the pattern is a valid AST node. For example:
+- Use "function $NAME" not just "$NAME"
+- Use "console.log($X)" not "console.log"`
+            }
+          ]
+        };
+      }
+      const header = `Found ${totalMatches} match(es) in ${files.length} file(s)
+Pattern: ${pattern}
+
+`;
+      return {
+        content: [
+          {
+            type: "text",
+            text: header + results.join("\n\n---\n\n")
+          }
+        ]
+      };
+    } catch (error2) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error in AST search: ${error2 instanceof Error ? error2.message : String(error2)}
+
+Common issues:
+- Pattern must be a complete AST node
+- Language must match file type
+- Check that @ast-grep/napi is installed`
+          }
+        ]
+      };
+    }
+  }
+};
+var astGrepReplaceTool = {
+  name: "ast_grep_replace",
+  description: `Replace code patterns using AST matching. Preserves matched content via meta-variables.
+
+Use meta-variables in both pattern and replacement:
+- $NAME in pattern captures a node, use $NAME in replacement to insert it
+- $$$ARGS captures multiple nodes
+
+Examples:
+- Pattern: "console.log($MSG)" \u2192 Replacement: "logger.info($MSG)"
+- Pattern: "var $NAME = $VALUE" \u2192 Replacement: "const $NAME = $VALUE"
+- Pattern: "$OBJ.forEach(($ITEM) => { $$$BODY })" \u2192 Replacement: "for (const $ITEM of $OBJ) { $$$BODY }"
+
+IMPORTANT: dryRun=true (default) only previews changes. Set dryRun=false to apply.`,
+  schema: {
+    pattern: external_exports.string().describe("Pattern to match"),
+    replacement: external_exports.string().describe("Replacement pattern (use same meta-variables)"),
+    language: external_exports.enum(SUPPORTED_LANGUAGES).describe("Programming language"),
+    path: external_exports.string().optional().describe("Directory or file to search (default: current directory)"),
+    dryRun: external_exports.boolean().optional().describe("Preview only, don't apply changes (default: true)")
+  },
+  handler: async (args) => {
+    const { pattern, replacement, language, path: path6 = ".", dryRun = true } = args;
+    try {
+      const sg = await getSgModule();
+      if (!sg) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `@ast-grep/napi is not available. Install it with: npm install -g @ast-grep/napi
+Error: ${sgLoadError}`
+            }
+          ]
+        };
+      }
+      const files = getFilesForLanguage(path6, language);
+      if (files.length === 0) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `No ${language} files found in ${path6}`
+            }
+          ]
+        };
+      }
+      const changes = [];
+      let totalReplacements = 0;
+      for (const filePath of files) {
+        try {
+          const content = (0, import_fs5.readFileSync)(filePath, "utf-8");
+          const root = sg.parse(toLangEnum(sg, language), content).root();
+          const matches = root.findAll(pattern);
+          if (matches.length === 0) continue;
+          const edits = [];
+          for (const match of matches) {
+            const range = match.range();
+            const startOffset = range.start.index;
+            const endOffset = range.end.index;
+            let finalReplacement = replacement;
+            const matchedText = match.text();
+            try {
+              const metaVars = replacement.match(/\$\$?\$?[A-Z_][A-Z0-9_]*/g) || [];
+              for (const metaVar of metaVars) {
+                const varName = metaVar.replace(/^\$+/, "");
+                const captured = match.getMatch(varName);
+                if (captured) {
+                  finalReplacement = finalReplacement.replace(
+                    metaVar,
+                    captured.text()
+                  );
+                }
+              }
+            } catch {
+            }
+            edits.push({
+              start: startOffset,
+              end: endOffset,
+              replacement: finalReplacement,
+              line: range.start.line + 1,
+              before: matchedText
+            });
+          }
+          edits.sort((a, b) => b.start - a.start);
+          let newContent = content;
+          for (const edit of edits) {
+            const before = newContent.slice(edit.start, edit.end);
+            newContent = newContent.slice(0, edit.start) + edit.replacement + newContent.slice(edit.end);
+            changes.push({
+              file: filePath,
+              before,
+              after: edit.replacement,
+              line: edit.line
+            });
+            totalReplacements++;
+          }
+          if (!dryRun && edits.length > 0) {
+            (0, import_fs5.writeFileSync)(filePath, newContent, "utf-8");
+          }
+        } catch {
+        }
+      }
+      if (changes.length === 0) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `No matches found for pattern: ${pattern}
+
+Searched ${files.length} ${language} file(s) in ${path6}`
+            }
+          ]
+        };
+      }
+      const mode = dryRun ? "DRY RUN (no changes applied)" : "CHANGES APPLIED";
+      const header = `${mode}
+
+Found ${totalReplacements} replacement(s) in ${files.length} file(s)
+Pattern: ${pattern}
+Replacement: ${replacement}
+
+`;
+      const changeList = changes.slice(0, 50).map((c) => `${c.file}:${c.line}
+  - ${c.before}
+  + ${c.after}`).join("\n\n");
+      const footer = changes.length > 50 ? `
+
+... and ${changes.length - 50} more changes` : "";
+      return {
+        content: [
+          {
+            type: "text",
+            text: header + changeList + footer + (dryRun ? "\n\nTo apply changes, run with dryRun: false" : "")
+          }
+        ]
+      };
+    } catch (error2) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error in AST replace: ${error2 instanceof Error ? error2.message : String(error2)}`
+          }
+        ]
+      };
+    }
+  }
+};
+var astTools = [astGrepSearchTool, astGrepReplaceTool];
+
+// src/tools/python-repl/paths.ts
+var fs = __toESM(require("fs"), 1);
+var path = __toESM(require("path"), 1);
+var os = __toESM(require("os"), 1);
+var crypto = __toESM(require("crypto"), 1);
+var SHORT_SESSION_ID_LENGTH = 12;
+var WINDOWS_RESERVED_NAMES = /* @__PURE__ */ new Set([
+  // Standard reserved device names
+  "CON",
+  "PRN",
+  "AUX",
+  "NUL",
+  "COM1",
+  "COM2",
+  "COM3",
+  "COM4",
+  "COM5",
+  "COM6",
+  "COM7",
+  "COM8",
+  "COM9",
+  "LPT1",
+  "LPT2",
+  "LPT3",
+  "LPT4",
+  "LPT5",
+  "LPT6",
+  "LPT7",
+  "LPT8",
+  "LPT9"
+]);
+function isSecureRuntimeDir(dir) {
+  if (!path.isAbsolute(dir)) return false;
+  try {
+    const stat = fs.lstatSync(dir);
+    if (!stat.isDirectory() || stat.isSymbolicLink()) return false;
+    if (stat.uid !== process.getuid?.()) return false;
+    if ((stat.mode & 511) !== 448) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+function getRuntimeDir() {
+  const xdgRuntime = process.env.XDG_RUNTIME_DIR;
+  if (xdgRuntime && isSecureRuntimeDir(xdgRuntime)) {
+    return path.join(xdgRuntime, "omc");
+  }
+  const platform = process.platform;
+  if (platform === "darwin") {
+    return path.join(os.homedir(), "Library", "Caches", "omc", "runtime");
+  } else if (platform === "linux") {
+    return path.join("/tmp", "omc", "runtime");
+  } else if (platform === "win32") {
+    const localAppData = process.env.LOCALAPPDATA || path.join(os.homedir(), "AppData", "Local");
+    return path.join(localAppData, "omc", "runtime");
+  }
+  return path.join(os.tmpdir(), "omc", "runtime");
+}
+function shortenSessionId(sessionId) {
+  return crypto.createHash("sha256").update(sessionId).digest("hex").slice(0, SHORT_SESSION_ID_LENGTH);
+}
+function getSessionDir(sessionId) {
+  const shortId = shortenSessionId(sessionId);
+  return path.join(getRuntimeDir(), shortId);
+}
+function getBridgeSocketPath(sessionId) {
+  return path.join(getSessionDir(sessionId), "bridge.sock");
+}
+function getBridgeMetaPath(sessionId) {
+  return path.join(getSessionDir(sessionId), "bridge_meta.json");
+}
+function getSessionLockPath(sessionId) {
+  return path.join(getSessionDir(sessionId), "session.lock");
+}
+function validatePathSegment(segment, name) {
+  if (!segment || typeof segment !== "string") {
+    throw new Error(`${name} is required and must be a string`);
+  }
+  if (segment.trim().length === 0) {
+    throw new Error(`Invalid ${name}: cannot be empty or whitespace`);
+  }
+  const normalized = segment.normalize("NFC");
+  if (normalized.includes("..") || normalized.includes("/") || normalized.includes("\\")) {
+    throw new Error(`Invalid ${name}: contains path traversal characters`);
+  }
+  if (normalized.includes("\0")) {
+    throw new Error(`Invalid ${name}: contains null byte`);
+  }
+  if (Buffer.byteLength(normalized, "utf8") > 255) {
+    throw new Error(`Invalid ${name}: exceeds maximum length of 255 bytes`);
+  }
+  const upperSegment = normalized.toUpperCase();
+  const baseName = upperSegment.split(".")[0].replace(/[ .]+$/, "");
+  if (WINDOWS_RESERVED_NAMES.has(baseName)) {
+    throw new Error(`${name} contains Windows reserved name: ${segment}`);
+  }
+  if (normalized.endsWith(".") || normalized.endsWith(" ")) {
+    throw new Error(`${name} has trailing dot or space: ${segment}`);
+  }
+}
+
+// src/tools/python-repl/session-lock.ts
+var fs3 = __toESM(require("fs/promises"), 1);
+var fsSync2 = __toESM(require("fs"), 1);
+var path4 = __toESM(require("path"), 1);
+var os2 = __toESM(require("os"), 1);
+var crypto3 = __toESM(require("crypto"), 1);
+var import_child_process5 = require("child_process");
+var import_util6 = require("util");
+
+// src/lib/atomic-write.ts
+var fs2 = __toESM(require("fs/promises"), 1);
+var fsSync = __toESM(require("fs"), 1);
+var path2 = __toESM(require("path"), 1);
+var crypto2 = __toESM(require("crypto"), 1);
+function ensureDirSync(dir) {
+  if (fsSync.existsSync(dir)) {
+    return;
+  }
+  try {
+    fsSync.mkdirSync(dir, { recursive: true });
+  } catch (err) {
+    if (err.code === "EEXIST") {
+      return;
+    }
+    throw err;
+  }
+}
+async function atomicWriteJson(filePath, data) {
+  const dir = path2.dirname(filePath);
+  const base = path2.basename(filePath);
+  const tempPath = path2.join(dir, `.${base}.tmp.${crypto2.randomUUID()}`);
+  let success = false;
+  try {
+    ensureDirSync(dir);
+    const jsonContent = JSON.stringify(data, null, 2);
+    const fd = await fs2.open(tempPath, "wx", 384);
+    try {
+      await fd.write(jsonContent, 0, "utf-8");
+      await fd.sync();
+    } finally {
+      await fd.close();
+    }
+    await fs2.rename(tempPath, filePath);
+    success = true;
+    try {
+      const dirFd = await fs2.open(dir, "r");
+      try {
+        await dirFd.sync();
+      } finally {
+        await dirFd.close();
+      }
+    } catch {
+    }
+  } finally {
+    if (!success) {
+      await fs2.unlink(tempPath).catch(() => {
+      });
+    }
+  }
+}
+async function safeReadJson(filePath) {
+  try {
+    await fs2.access(filePath);
+    const content = await fs2.readFile(filePath, "utf-8");
+    return JSON.parse(content);
+  } catch (err) {
+    const error2 = err;
+    if (error2.code === "ENOENT") {
+      return null;
+    }
+    return null;
+  }
+}
+
+// src/platform/index.ts
+var path3 = __toESM(require("path"), 1);
+
+// src/platform/process-utils.ts
+var import_child_process4 = require("child_process");
+var import_util5 = require("util");
+var fsPromises = __toESM(require("fs/promises"), 1);
+var execFileAsync = (0, import_util5.promisify)(import_child_process4.execFile);
+function isProcessAlive(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+async function getProcessStartTime(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return void 0;
+  if (process.platform === "win32") {
+    return getProcessStartTimeWindows(pid);
+  } else if (process.platform === "darwin") {
+    return getProcessStartTimeMacOS(pid);
+  } else if (process.platform === "linux") {
+    return getProcessStartTimeLinux(pid);
+  }
+  return void 0;
+}
+async function getProcessStartTimeWindows(pid) {
+  try {
+    const { stdout } = await execFileAsync("wmic", [
+      "process",
+      "where",
+      `ProcessId=${pid}`,
+      "get",
+      "CreationDate",
+      "/format:csv"
+    ], { timeout: 5e3, windowsHide: true });
+    const lines = stdout.trim().split(/\r?\n/).filter((l) => l.trim());
+    if (lines.length < 2) return void 0;
+    const match = lines[1].match(/,(\d{14})/);
+    if (!match) return void 0;
+    const d = match[1];
+    const date3 = new Date(
+      parseInt(d.slice(0, 4)),
+      parseInt(d.slice(4, 6)) - 1,
+      parseInt(d.slice(6, 8)),
+      parseInt(d.slice(8, 10)),
+      parseInt(d.slice(10, 12)),
+      parseInt(d.slice(12, 14))
+    );
+    return date3.getTime();
+  } catch {
+    return void 0;
+  }
+}
+async function getProcessStartTimeMacOS(pid) {
+  try {
+    const { stdout } = await execFileAsync("ps", ["-p", String(pid), "-o", "lstart="], {
+      env: { ...process.env, LC_ALL: "C" },
+      windowsHide: true
+    });
+    const date3 = new Date(stdout.trim());
+    return isNaN(date3.getTime()) ? void 0 : date3.getTime();
+  } catch {
+    return void 0;
+  }
+}
+async function getProcessStartTimeLinux(pid) {
+  try {
+    const stat = await fsPromises.readFile(`/proc/${pid}/stat`, "utf8");
+    const closeParen = stat.lastIndexOf(")");
+    if (closeParen === -1) return void 0;
+    const fields = stat.substring(closeParen + 2).split(" ");
+    const startTime = parseInt(fields[19], 10);
+    return isNaN(startTime) ? void 0 : startTime;
+  } catch {
+    return void 0;
+  }
+}
+
+// src/platform/index.ts
+var PLATFORM = process.platform;
+
+// src/tools/python-repl/session-lock.ts
+var execFileAsync2 = (0, import_util6.promisify)(import_child_process5.execFile);
+var STALE_LOCK_AGE_MS = 6e4;
+var DEFAULT_ACQUIRE_TIMEOUT_MS = 3e4;
+var LOCK_RETRY_INTERVAL_MS = 100;
+var REMOTE_LOCK_STALE_AGE_MS = 3e5;
+var LockTimeoutError = class extends Error {
+  constructor(lockPath, timeout, lastHolder) {
+    super(
+      `Failed to acquire lock within ${timeout}ms. ` + (lastHolder ? `Held by PID ${lastHolder.pid} on ${lastHolder.hostname} since ${lastHolder.acquiredAt}` : "Unknown holder") + `. Lock path: ${lockPath}`
+    );
+    this.lockPath = lockPath;
+    this.timeout = timeout;
+    this.lastHolder = lastHolder;
+    this.name = "LockTimeoutError";
+  }
+};
+var LockError = class extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "LockError";
+  }
+};
+function isValidPid(pid) {
+  return typeof pid === "number" && Number.isInteger(pid) && pid > 0;
+}
+async function getCurrentProcessStartTime() {
+  return getProcessStartTime(process.pid);
+}
+async function isProcessAlive2(pid, recordedStartTime) {
+  if (!isValidPid(pid)) return false;
+  if (process.platform === "linux") {
+    const currentStartTime = await getProcessStartTime(pid);
+    if (currentStartTime === void 0) return false;
+    if (recordedStartTime !== void 0 && currentStartTime !== recordedStartTime) {
+      return false;
+    }
+    return true;
+  } else if (process.platform === "darwin") {
+    try {
+      const { stdout } = await execFileAsync2("ps", ["-p", String(pid), "-o", "pid="], {
+        env: { ...process.env, LC_ALL: "C" }
+      });
+      if (stdout.trim() === "") return false;
+      if (recordedStartTime !== void 0) {
+        const currentStartTime = await getProcessStartTime(pid);
+        if (currentStartTime === void 0) {
+          return false;
+        }
+        if (currentStartTime !== recordedStartTime) {
+          return false;
+        }
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  } else if (process.platform === "win32") {
+    try {
+      process.kill(pid, 0);
+      if (recordedStartTime !== void 0) {
+        const currentStartTime = await getProcessStartTime(pid);
+        if (currentStartTime === void 0) {
+          return false;
+        }
+        if (currentStartTime !== recordedStartTime) {
+          return false;
+        }
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  return true;
+}
+async function openNoFollow(filePath, flags, mode) {
+  const O_NOFOLLOW = fsSync2.constants.O_NOFOLLOW ?? 0;
+  const flagsWithNoFollow = flags | O_NOFOLLOW;
+  try {
+    return await fs3.open(filePath, flagsWithNoFollow, mode);
+  } catch (err) {
+    if (err.code === "ELOOP") {
+      throw new LockError(`Lock file is a symlink: ${filePath}`);
+    }
+    throw err;
+  }
+}
+async function readFileNoFollow(filePath) {
+  try {
+    const stat = await fs3.lstat(filePath);
+    if (stat.isSymbolicLink()) {
+      throw new LockError(`Lock file is a symlink: ${filePath}`);
+    }
+  } catch (err) {
+    if (err.code === "ENOENT") {
+      throw err;
+    }
+    if (err instanceof LockError) {
+      throw err;
+    }
+  }
+  return fs3.readFile(filePath, "utf8");
+}
+async function readLockFile(lockPath) {
+  try {
+    const content = await readFileNoFollow(lockPath);
+    const lockInfo = JSON.parse(content);
+    if (!lockInfo.lockId || !isValidPid(lockInfo.pid) || !lockInfo.hostname || !lockInfo.acquiredAt) {
+      return null;
+    }
+    return lockInfo;
+  } catch {
+    return null;
+  }
+}
+async function createLockInfo(lockId) {
+  return {
+    lockId,
+    pid: process.pid,
+    processStartTime: await getCurrentProcessStartTime(),
+    hostname: os2.hostname(),
+    acquiredAt: (/* @__PURE__ */ new Date()).toISOString()
+  };
+}
+async function canBreakLock(lockInfo) {
+  const age = Date.now() - new Date(lockInfo.acquiredAt).getTime();
+  if (age < STALE_LOCK_AGE_MS) {
+    return false;
+  }
+  if (lockInfo.hostname !== os2.hostname()) {
+    return age > REMOTE_LOCK_STALE_AGE_MS;
+  }
+  const alive = await isProcessAlive2(lockInfo.pid, lockInfo.processStartTime);
+  return !alive;
+}
+var SessionLock = class {
+  lockPath;
+  lockId;
+  held = false;
+  lockInfo = null;
+  constructor(sessionId) {
+    this.lockPath = getSessionLockPath(sessionId);
+    this.lockId = crypto3.randomUUID();
+  }
+  /**
+   * Acquire lock with timeout (default 30s).
+   * Blocks until lock is acquired or timeout is reached.
+   *
+   * @param timeout - Maximum time to wait in milliseconds
+   * @throws LockTimeoutError if lock cannot be acquired within timeout
+   */
+  async acquire(timeout = DEFAULT_ACQUIRE_TIMEOUT_MS) {
+    if (this.held) {
+      throw new LockError("Lock already held by this instance");
+    }
+    const startTime = Date.now();
+    let lastHolder;
+    while (Date.now() - startTime < timeout) {
+      const result = await this.tryAcquire();
+      if (result.acquired) {
+        return;
+      }
+      if (result.holder) {
+        lastHolder = result.holder;
+      }
+      await sleep(LOCK_RETRY_INTERVAL_MS);
+    }
+    throw new LockTimeoutError(this.lockPath, timeout, lastHolder);
+  }
+  /**
+   * Try to acquire lock (non-blocking).
+   * Returns immediately with result indicating success or failure.
+   */
+  async tryAcquire() {
+    try {
+      const existingLock = await readLockFile(this.lockPath);
+      if (existingLock) {
+        if (await canBreakLock(existingLock)) {
+          try {
+            await fs3.unlink(this.lockPath);
+          } catch {
+          }
+        } else {
+          return {
+            acquired: false,
+            reason: "held_by_other",
+            holder: existingLock
+          };
+        }
+      }
+      const newLockInfo = await createLockInfo(this.lockId);
+      try {
+        ensureDirSync(path4.dirname(this.lockPath));
+        const flags = fsSync2.constants.O_WRONLY | fsSync2.constants.O_CREAT | fsSync2.constants.O_EXCL;
+        const lockFile = await openNoFollow(this.lockPath, flags, 420);
+        try {
+          await lockFile.writeFile(JSON.stringify(newLockInfo, null, 2), { encoding: "utf8" });
+          await lockFile.sync();
+        } finally {
+          await lockFile.close();
+        }
+      } catch (err) {
+        if (err.code === "EEXIST") {
+          return {
+            acquired: false,
+            reason: "held_by_other"
+          };
+        }
+        throw err;
+      }
+      const verifyLock = await readLockFile(this.lockPath);
+      if (!verifyLock || verifyLock.lockId !== this.lockId) {
+        return {
+          acquired: false,
+          reason: "error"
+        };
+      }
+      this.held = true;
+      this.lockInfo = newLockInfo;
+      return {
+        acquired: true,
+        reason: existingLock ? "stale_broken" : "success"
+      };
+    } catch (err) {
+      return {
+        acquired: false,
+        reason: "error"
+      };
+    }
+  }
+  /**
+   * Release held lock.
+   * Safe to call multiple times - subsequent calls are no-ops.
+   */
+  async release() {
+    if (!this.held) {
+      return;
+    }
+    try {
+      const currentLock = await readLockFile(this.lockPath);
+      if (currentLock && currentLock.lockId === this.lockId) {
+        await fs3.unlink(this.lockPath);
+      }
+    } catch {
+    } finally {
+      this.held = false;
+      this.lockInfo = null;
+    }
+  }
+  /**
+   * Force break a stale lock.
+   * USE WITH CAUTION: This will break the lock regardless of who holds it.
+   * Should only be used for recovery from known stale states.
+   */
+  async forceBreak() {
+    try {
+      await fs3.unlink(this.lockPath);
+    } catch (err) {
+      if (err.code !== "ENOENT") {
+        throw err;
+      }
+    }
+    this.held = false;
+    this.lockInfo = null;
+  }
+  /**
+   * Check if lock is held by us.
+   */
+  isHeld() {
+    return this.held;
+  }
+  /**
+   * Get the lock file path.
+   */
+  getLockPath() {
+    return this.lockPath;
+  }
+  /**
+   * Get current lock info (if held).
+   */
+  getLockInfo() {
+    return this.lockInfo;
+  }
+};
+function sleep(ms) {
+  return new Promise((resolve4) => setTimeout(resolve4, ms));
+}
+
+// src/tools/python-repl/socket-client.ts
+var net = __toESM(require("net"), 1);
+var import_crypto = require("crypto");
+var SocketConnectionError = class extends Error {
+  constructor(message, socketPath, originalError) {
+    super(message);
+    this.socketPath = socketPath;
+    this.originalError = originalError;
+    this.name = "SocketConnectionError";
+  }
+};
+var SocketTimeoutError = class extends Error {
+  constructor(message, timeoutMs) {
+    super(message);
+    this.timeoutMs = timeoutMs;
+    this.name = "SocketTimeoutError";
+  }
+};
+var JsonRpcError = class extends Error {
+  constructor(message, code, data) {
+    super(message);
+    this.code = code;
+    this.data = data;
+    this.name = "JsonRpcError";
+  }
+};
+async function sendSocketRequest(socketPath, method, params, timeout = 6e4) {
+  return new Promise((resolve4, reject) => {
+    const id = (0, import_crypto.randomUUID)();
+    const request = {
+      jsonrpc: "2.0",
+      id,
+      method,
+      params: params ?? {}
+    };
+    const requestLine = JSON.stringify(request) + "\n";
+    let responseBuffer = "";
+    let timedOut = false;
+    const MAX_RESPONSE_SIZE = 2 * 1024 * 1024;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      socket.destroy();
+      reject(new SocketTimeoutError(
+        `Request timeout after ${timeout}ms for method "${method}"`,
+        timeout
+      ));
+    }, timeout);
+    const cleanup = () => {
+      clearTimeout(timer);
+      socket.removeAllListeners();
+      socket.destroy();
+    };
+    const socket = net.createConnection({ path: socketPath });
+    socket.on("connect", () => {
+      socket.write(requestLine);
+    });
+    socket.on("data", (chunk) => {
+      responseBuffer += chunk.toString();
+      if (responseBuffer.length > MAX_RESPONSE_SIZE) {
+        cleanup();
+        reject(new Error(
+          `Response exceeded maximum size of ${MAX_RESPONSE_SIZE} bytes`
+        ));
+        return;
+      }
+      const newlineIndex = responseBuffer.indexOf("\n");
+      if (newlineIndex !== -1) {
+        const jsonLine = responseBuffer.slice(0, newlineIndex);
+        cleanup();
+        try {
+          const response = JSON.parse(jsonLine);
+          if (response.jsonrpc !== "2.0") {
+            reject(new Error(
+              `Invalid JSON-RPC version: expected "2.0", got "${response.jsonrpc}"`
+            ));
+            return;
+          }
+          if (response.id !== id) {
+            reject(new Error(
+              `Response ID mismatch: expected "${id}", got "${response.id}"`
+            ));
+            return;
+          }
+          if (response.error) {
+            reject(new JsonRpcError(
+              response.error.message,
+              response.error.code,
+              response.error.data
+            ));
+            return;
+          }
+          resolve4(response.result);
+        } catch (e) {
+          reject(new Error(
+            `Failed to parse JSON-RPC response: ${e.message}`
+          ));
+        }
+      }
+    });
+    socket.on("error", (err) => {
+      if (timedOut) {
+        return;
+      }
+      cleanup();
+      if (err.code === "ENOENT") {
+        reject(new SocketConnectionError(
+          `Socket does not exist at path: ${socketPath}`,
+          socketPath,
+          err
+        ));
+      } else if (err.code === "ECONNREFUSED") {
+        reject(new SocketConnectionError(
+          `Connection refused - server not listening at: ${socketPath}`,
+          socketPath,
+          err
+        ));
+      } else {
+        reject(new SocketConnectionError(
+          `Socket connection error: ${err.message}`,
+          socketPath,
+          err
+        ));
+      }
+    });
+    socket.on("close", () => {
+      if (timedOut) {
+        return;
+      }
+      if (responseBuffer.indexOf("\n") === -1) {
+        cleanup();
+        reject(new Error(
+          `Socket closed without sending complete response (method: "${method}")`
+        ));
+      }
+    });
+  });
+}
+
+// src/tools/python-repl/bridge-manager.ts
+var import_child_process6 = require("child_process");
+var fs4 = __toESM(require("fs"), 1);
+var fsPromises2 = __toESM(require("fs/promises"), 1);
+var path5 = __toESM(require("path"), 1);
+var import_url = require("url");
+var import_child_process7 = require("child_process");
+var import_util7 = require("util");
+var import_meta = {};
+var execFileAsync3 = (0, import_util7.promisify)(import_child_process7.execFile);
+var BRIDGE_SPAWN_TIMEOUT_MS = 3e4;
+var DEFAULT_GRACE_PERIOD_MS = 5e3;
+var SIGTERM_GRACE_MS = 2500;
+function getBridgeScriptPath() {
+  const __filename = (0, import_url.fileURLToPath)(import_meta.url);
+  const __dirname = path5.dirname(__filename);
+  const packageRoot = path5.resolve(__dirname, "..", "..", "..");
+  return path5.join(packageRoot, "bridge", "gyoshu_bridge.py");
+}
+function detectExistingPythonEnv(projectRoot) {
+  const isWindows = process.platform === "win32";
+  const binDir = isWindows ? "Scripts" : "bin";
+  const pythonExe = isWindows ? "python.exe" : "python";
+  const venvPython = path5.join(projectRoot, ".venv", binDir, pythonExe);
+  if (fs4.existsSync(venvPython)) {
+    return { pythonPath: venvPython, type: "venv" };
+  }
+  return null;
+}
+async function ensurePythonEnvironment(projectRoot) {
+  const existing = detectExistingPythonEnv(projectRoot);
+  if (existing) {
+    return existing;
+  }
+  try {
+    await execFileAsync3("python3", ["--version"]);
+    return { pythonPath: "python3", type: "venv" };
+  } catch {
+  }
+  throw new Error(
+    "No Python environment found. Create a virtual environment first:\n  python -m venv .venv\n  .venv/bin/pip install pandas numpy matplotlib"
+  );
+}
+async function verifyProcessIdentity(meta) {
+  if (!isProcessAlive(meta.pid)) {
+    return false;
+  }
+  if (meta.processStartTime !== void 0) {
+    const currentStartTime = await getProcessStartTime(meta.pid);
+    if (currentStartTime === void 0) {
+      return false;
+    }
+    if (currentStartTime !== meta.processStartTime) {
+      return false;
+    }
+  }
+  return true;
+}
+function isSocket(socketPath) {
+  try {
+    const stat = fs4.lstatSync(socketPath);
+    return stat.isSocket();
+  } catch {
+    return false;
+  }
+}
+function safeUnlinkSocket(socketPath) {
+  try {
+    if (fs4.existsSync(socketPath)) {
+      fs4.unlinkSync(socketPath);
+    }
+  } catch {
+  }
+}
+function isValidBridgeMeta(data) {
+  if (typeof data !== "object" || data === null) return false;
+  const obj = data;
+  return typeof obj.pid === "number" && Number.isInteger(obj.pid) && obj.pid > 0 && typeof obj.socketPath === "string" && typeof obj.startedAt === "string" && typeof obj.sessionId === "string" && typeof obj.pythonEnv === "object" && obj.pythonEnv !== null && typeof obj.pythonEnv.pythonPath === "string" && (obj.processStartTime === void 0 || typeof obj.processStartTime === "number");
+}
+function killProcessGroup(pid, signal) {
+  if (process.platform === "win32") {
+    try {
+      const force = signal === "SIGKILL";
+      const args = force ? "/F /T" : "/T";
+      require("child_process").execSync(
+        `taskkill ${args} /PID ${pid}`,
+        { stdio: "ignore", timeout: 5e3, windowsHide: true }
+      );
+      return true;
+    } catch {
+      return false;
+    }
+  } else {
+    try {
+      process.kill(-pid, signal);
+      return true;
+    } catch {
+      try {
+        process.kill(pid, signal);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+  }
+}
+async function spawnBridgeServer(sessionId, projectDir) {
+  const sessionDir = getSessionDir(sessionId);
+  ensureDirSync(sessionDir);
+  const socketPath = getBridgeSocketPath(sessionId);
+  const bridgePath = getBridgeScriptPath();
+  if (!fs4.existsSync(bridgePath)) {
+    throw new Error(`Bridge script not found: ${bridgePath}`);
+  }
+  safeUnlinkSocket(socketPath);
+  const effectiveProjectDir = projectDir || process.cwd();
+  const pythonEnv = await ensurePythonEnvironment(effectiveProjectDir);
+  const bridgeArgs = [bridgePath, socketPath];
+  const proc = (0, import_child_process6.spawn)(pythonEnv.pythonPath, bridgeArgs, {
+    stdio: ["ignore", "ignore", "pipe"],
+    cwd: effectiveProjectDir,
+    env: { ...process.env, PYTHONUNBUFFERED: "1" },
+    detached: true
+  });
+  proc.unref();
+  const MAX_STDERR_CHARS = 64 * 1024;
+  let stderrBuffer = "";
+  let stderrTruncated = false;
+  proc.stderr?.on("data", (chunk) => {
+    if (stderrTruncated) return;
+    const text = chunk.toString();
+    if (stderrBuffer.length + text.length > MAX_STDERR_CHARS) {
+      stderrBuffer = stderrBuffer.slice(0, MAX_STDERR_CHARS - 20) + "\n...[truncated]";
+      stderrTruncated = true;
+    } else {
+      stderrBuffer += text;
+    }
+  });
+  const startTime = Date.now();
+  while (!isSocket(socketPath)) {
+    if (Date.now() - startTime > BRIDGE_SPAWN_TIMEOUT_MS) {
+      if (proc.pid) {
+        killProcessGroup(proc.pid, "SIGKILL");
+      }
+      if (fs4.existsSync(socketPath) && !isSocket(socketPath)) {
+        safeUnlinkSocket(socketPath);
+      }
+      throw new Error(
+        `Bridge failed to create socket in ${BRIDGE_SPAWN_TIMEOUT_MS}ms. Stderr: ${stderrBuffer || "(empty)"}`
+      );
+    }
+    await sleep2(100);
+  }
+  const processStartTime = proc.pid ? await getProcessStartTime(proc.pid) : void 0;
+  const meta = {
+    pid: proc.pid,
+    socketPath,
+    startedAt: (/* @__PURE__ */ new Date()).toISOString(),
+    sessionId,
+    pythonEnv,
+    processStartTime
+  };
+  const metaPath = getBridgeMetaPath(sessionId);
+  await atomicWriteJson(metaPath, meta);
+  return meta;
+}
+async function ensureBridge(sessionId, projectDir) {
+  const metaPath = getBridgeMetaPath(sessionId);
+  const expectedSocketPath = getBridgeSocketPath(sessionId);
+  const meta = await safeReadJson(metaPath);
+  if (meta && isValidBridgeMeta(meta)) {
+    if (meta.sessionId !== sessionId) {
+      await deleteBridgeMeta(sessionId);
+      return spawnBridgeServer(sessionId, projectDir);
+    }
+    if (meta.socketPath !== expectedSocketPath) {
+      await deleteBridgeMeta(sessionId);
+      return spawnBridgeServer(sessionId, projectDir);
+    }
+    const stillOurs = await verifyProcessIdentity(meta);
+    if (stillOurs) {
+      if (isSocket(meta.socketPath)) {
+        return meta;
+      } else {
+        try {
+          process.kill(meta.pid, "SIGKILL");
+        } catch {
+        }
+      }
+    }
+    await deleteBridgeMeta(sessionId);
+  }
+  return spawnBridgeServer(sessionId, projectDir);
+}
+async function killBridgeWithEscalation(sessionId, options) {
+  const gracePeriod = options?.gracePeriodMs ?? DEFAULT_GRACE_PERIOD_MS;
+  const startTime = Date.now();
+  const metaPath = getBridgeMetaPath(sessionId);
+  const meta = await safeReadJson(metaPath);
+  if (!meta || !isValidBridgeMeta(meta)) {
+    return { terminated: true };
+  }
+  if (meta.sessionId !== sessionId) {
+    await deleteBridgeMeta(sessionId);
+    return { terminated: true };
+  }
+  if (!await verifyProcessIdentity(meta)) {
+    await deleteBridgeMeta(sessionId);
+    return { terminated: true };
+  }
+  const waitForExit = async (timeoutMs) => {
+    const checkStart = Date.now();
+    while (Date.now() - checkStart < timeoutMs) {
+      const stillOurs = await verifyProcessIdentity(meta);
+      if (!stillOurs) {
+        return true;
+      }
+      await sleep2(100);
+    }
+    return false;
+  };
+  let terminatedBy = "SIGINT";
+  killProcessGroup(meta.pid, "SIGINT");
+  if (!await waitForExit(gracePeriod)) {
+    terminatedBy = "SIGTERM";
+    killProcessGroup(meta.pid, "SIGTERM");
+    if (!await waitForExit(SIGTERM_GRACE_MS)) {
+      terminatedBy = "SIGKILL";
+      killProcessGroup(meta.pid, "SIGKILL");
+      await waitForExit(1e3);
+    }
+  }
+  await deleteBridgeMeta(sessionId);
+  const sessionDir = getSessionDir(sessionId);
+  const socketPath = meta.socketPath;
+  if (socketPath.startsWith(sessionDir)) {
+    safeUnlinkSocket(socketPath);
+  }
+  return {
+    terminated: true,
+    terminatedBy,
+    terminationTimeMs: Date.now() - startTime
+  };
+}
+async function deleteBridgeMeta(sessionId) {
+  const metaPath = getBridgeMetaPath(sessionId);
+  try {
+    await fsPromises2.unlink(metaPath);
+  } catch {
+  }
+}
+function sleep2(ms) {
+  return new Promise((resolve4) => setTimeout(resolve4, ms));
+}
+
+// src/tools/python-repl/tool.ts
+var DEFAULT_EXECUTION_TIMEOUT_MS = 3e5;
+var DEFAULT_QUEUE_TIMEOUT_MS = 3e4;
+var pythonReplSchema = external_exports.object({
+  action: external_exports.enum(["execute", "interrupt", "reset", "get_state"]).describe(
+    "Action to perform: execute (run Python code), interrupt (stop running code), reset (clear namespace), get_state (memory and variables)"
+  ),
+  researchSessionID: external_exports.string().min(1, "researchSessionID is required").describe("Unique identifier for the research session"),
+  code: external_exports.string().optional().describe('Python code to execute (required for "execute" action)'),
+  executionLabel: external_exports.string().optional().describe(
+    'Human-readable label for this code execution. Examples: "Load dataset", "Train model", "Generate plot"'
+  ),
+  executionTimeout: external_exports.number().positive().default(DEFAULT_EXECUTION_TIMEOUT_MS).describe("Timeout for code execution in milliseconds (default: 300000 = 5 min)"),
+  queueTimeout: external_exports.number().positive().default(DEFAULT_QUEUE_TIMEOUT_MS).describe("Timeout for acquiring session lock in milliseconds (default: 30000 = 30 sec)"),
+  projectDir: external_exports.string().optional().describe("Project directory containing .venv/. Defaults to current working directory.")
+});
+var executionCounters = /* @__PURE__ */ new Map();
+function getNextExecutionCount(sessionId) {
+  const current = executionCounters.get(sessionId) || 0;
+  const next = current + 1;
+  executionCounters.set(sessionId, next);
+  return next;
+}
+function formatExecuteResult(result, sessionId, executionLabel, executionCount) {
+  const lines = [];
+  lines.push("=== Python REPL Execution ===");
+  lines.push(`Session: ${sessionId}`);
+  if (executionLabel) {
+    lines.push(`Label: ${executionLabel}`);
+  }
+  if (executionCount !== void 0) {
+    lines.push(`Execution #: ${executionCount}`);
+  }
+  lines.push("");
+  if (result.stdout) {
+    lines.push("--- Output ---");
+    lines.push(result.stdout.trimEnd());
+    lines.push("");
+  }
+  if (result.stderr) {
+    lines.push("--- Errors ---");
+    lines.push(result.stderr.trimEnd());
+    lines.push("");
+  }
+  if (result.markers && result.markers.length > 0) {
+    lines.push("--- Markers ---");
+    for (const marker of result.markers) {
+      const subtypeStr = marker.subtype ? `:${marker.subtype}` : "";
+      lines.push(`[${marker.type}${subtypeStr}] ${marker.content}`);
+    }
+    lines.push("");
+  }
+  if (result.timing) {
+    lines.push("--- Timing ---");
+    const durationSec = (result.timing.duration_ms / 1e3).toFixed(3);
+    lines.push(`Duration: ${durationSec}s`);
+    lines.push(`Started: ${result.timing.started_at}`);
+    lines.push("");
+  }
+  if (result.memory) {
+    lines.push("--- Memory ---");
+    lines.push(`RSS: ${result.memory.rss_mb.toFixed(1)} MB`);
+    lines.push(`VMS: ${result.memory.vms_mb.toFixed(1)} MB`);
+    lines.push("");
+  }
+  if (result.error) {
+    lines.push("=== Execution Failed ===");
+    lines.push(`Error Type: ${result.error.type}`);
+    lines.push(`Message: ${result.error.message}`);
+    if (result.error.traceback) {
+      lines.push("");
+      lines.push("Traceback:");
+      lines.push(result.error.traceback);
+    }
+    lines.push("");
+  }
+  lines.push(result.success ? "=== Execution Complete ===" : "=== Execution Failed ===");
+  return lines.join("\n");
+}
+function formatStateResult(result, sessionId) {
+  const lines = [];
+  lines.push("=== Python REPL State ===");
+  lines.push(`Session: ${sessionId}`);
+  lines.push("");
+  lines.push("--- Memory ---");
+  lines.push(`RSS: ${result.memory.rss_mb.toFixed(1)} MB`);
+  lines.push(`VMS: ${result.memory.vms_mb.toFixed(1)} MB`);
+  lines.push("");
+  lines.push("--- Variables ---");
+  lines.push(`Count: ${result.variable_count}`);
+  if (result.variables.length > 0) {
+    lines.push("");
+    const chunks = [];
+    for (let i = 0; i < result.variables.length; i += 10) {
+      chunks.push(result.variables.slice(i, i + 10));
+    }
+    for (const chunk of chunks) {
+      lines.push(chunk.join(", "));
+    }
+  } else {
+    lines.push("(no user variables defined)");
+  }
+  lines.push("");
+  lines.push("=== State Retrieved ===");
+  return lines.join("\n");
+}
+function formatResetResult(result, sessionId) {
+  const lines = [];
+  lines.push("=== Python REPL Reset ===");
+  lines.push(`Session: ${sessionId}`);
+  lines.push(`Status: ${result.status}`);
+  lines.push("");
+  lines.push("--- Memory After Reset ---");
+  lines.push(`RSS: ${result.memory.rss_mb.toFixed(1)} MB`);
+  lines.push(`VMS: ${result.memory.vms_mb.toFixed(1)} MB`);
+  lines.push("");
+  lines.push("=== Namespace Cleared ===");
+  return lines.join("\n");
+}
+function formatInterruptResult(result, sessionId) {
+  const lines = [];
+  lines.push("=== Python REPL Interrupt ===");
+  lines.push(`Session: ${sessionId}`);
+  lines.push(`Status: ${result.status}`);
+  if (result.terminatedBy) {
+    lines.push(`Terminated By: ${result.terminatedBy}`);
+  }
+  if (result.terminationTimeMs !== void 0) {
+    lines.push(`Termination Time: ${result.terminationTimeMs}ms`);
+  }
+  lines.push("");
+  lines.push("=== Execution Interrupted ===");
+  return lines.join("\n");
+}
+function formatLockTimeoutError(error2, sessionId) {
+  const lines = [];
+  lines.push("=== Session Busy ===");
+  lines.push(`Session: ${sessionId}`);
+  lines.push("");
+  lines.push("The session is currently busy processing another request.");
+  lines.push(`Queue timeout: ${error2.timeout}ms`);
+  lines.push("");
+  if (error2.lastHolder) {
+    lines.push("Current holder:");
+    lines.push(`  PID: ${error2.lastHolder.pid}`);
+    lines.push(`  Host: ${error2.lastHolder.hostname}`);
+    lines.push(`  Since: ${error2.lastHolder.acquiredAt}`);
+    lines.push("");
+  }
+  lines.push("Suggestions:");
+  lines.push("  1. Wait and retry later");
+  lines.push('  2. Use the "interrupt" action to stop the current execution');
+  lines.push('  3. Use the "reset" action to clear the session');
+  return lines.join("\n");
+}
+function formatSocketError(error2, sessionId) {
+  const lines = [];
+  lines.push("=== Connection Error ===");
+  lines.push(`Session: ${sessionId}`);
+  lines.push("");
+  lines.push(`Error: ${error2.message}`);
+  lines.push(`Socket: ${error2.socketPath}`);
+  lines.push("");
+  lines.push("Troubleshooting:");
+  lines.push("  1. The bridge process may have crashed - retry will auto-restart");
+  lines.push('  2. Use "reset" action to force restart the bridge');
+  lines.push("  3. Ensure .venv exists with Python installed");
+  return lines.join("\n");
+}
+function formatGeneralError(error2, sessionId, action) {
+  const lines = [];
+  lines.push("=== Error ===");
+  lines.push(`Session: ${sessionId}`);
+  lines.push(`Action: ${action}`);
+  lines.push("");
+  lines.push(`Type: ${error2.name}`);
+  lines.push(`Message: ${error2.message}`);
+  if (error2.stack) {
+    lines.push("");
+    lines.push("Stack trace:");
+    lines.push(error2.stack);
+  }
+  return lines.join("\n");
+}
+async function handleExecute(sessionId, socketPath, code, executionTimeout, executionLabel) {
+  const executionCount = getNextExecutionCount(sessionId);
+  try {
+    const result = await sendSocketRequest(
+      socketPath,
+      "execute",
+      { code, timeout: executionTimeout / 1e3 },
+      executionTimeout + 1e4
+      // Allow extra time for response
+    );
+    return formatExecuteResult(result, sessionId, executionLabel, executionCount);
+  } catch (error2) {
+    if (error2 instanceof SocketConnectionError) {
+      throw error2;
+    }
+    if (error2 instanceof SocketTimeoutError) {
+      return [
+        "=== Execution Timeout ===",
+        `Session: ${sessionId}`,
+        `Label: ${executionLabel || "(none)"}`,
+        "",
+        `The code execution exceeded the timeout of ${executionTimeout / 1e3} seconds.`,
+        "",
+        "The execution is still running in the background.",
+        'Use the "interrupt" action to stop it.'
+      ].join("\n");
+    }
+    if (error2 instanceof JsonRpcError) {
+      return [
+        "=== Execution Failed ===",
+        `Session: ${sessionId}`,
+        "",
+        `Error Code: ${error2.code}`,
+        `Message: ${error2.message}`,
+        error2.data ? `Data: ${JSON.stringify(error2.data, null, 2)}` : ""
+      ].filter(Boolean).join("\n");
+    }
+    throw error2;
+  }
+}
+async function handleReset(sessionId, socketPath) {
+  try {
+    const result = await sendSocketRequest(socketPath, "reset", {}, 1e4);
+    return formatResetResult(result, sessionId);
+  } catch (error2) {
+    await killBridgeWithEscalation(sessionId);
+    return [
+      "=== Bridge Restarted ===",
+      `Session: ${sessionId}`,
+      "",
+      "The bridge was unresponsive and has been terminated.",
+      "A new bridge will be spawned on the next request.",
+      "",
+      "Memory has been cleared."
+    ].join("\n");
+  }
+}
+async function handleGetState(sessionId, socketPath) {
+  try {
+    const result = await sendSocketRequest(socketPath, "get_state", {}, 5e3);
+    return formatStateResult(result, sessionId);
+  } catch (error2) {
+    if (error2 instanceof SocketConnectionError) {
+      throw error2;
+    }
+    if (error2 instanceof SocketTimeoutError) {
+      return [
+        "=== State Retrieval Timeout ===",
+        `Session: ${sessionId}`,
+        "",
+        "Could not retrieve state within timeout.",
+        "The bridge may be busy with a long-running execution."
+      ].join("\n");
+    }
+    throw error2;
+  }
+}
+async function handleInterrupt(sessionId, socketPath, gracePeriodMs = 5e3) {
+  try {
+    const result = await sendSocketRequest(
+      socketPath,
+      "interrupt",
+      {},
+      Math.min(gracePeriodMs, 5e3)
+    );
+    return formatInterruptResult(
+      {
+        ...result,
+        status: result.status || "interrupted",
+        terminatedBy: "graceful"
+      },
+      sessionId
+    );
+  } catch {
+    const escalationResult = await killBridgeWithEscalation(sessionId, { gracePeriodMs });
+    return formatInterruptResult(
+      {
+        status: "force_killed",
+        terminatedBy: escalationResult.terminatedBy,
+        terminationTimeMs: escalationResult.terminationTimeMs
+      },
+      sessionId
+    );
+  }
+}
+async function pythonReplHandler(input) {
+  const parseResult = pythonReplSchema.safeParse(input);
+  if (!parseResult.success) {
+    const errors = parseResult.error.errors.map((e) => `${e.path.join(".")}: ${e.message}`);
+    return [
+      "=== Validation Error ===",
+      "",
+      "Invalid input parameters:",
+      ...errors.map((e) => `  - ${e}`)
+    ].join("\n");
+  }
+  const {
+    action,
+    researchSessionID: sessionId,
+    code,
+    executionLabel,
+    executionTimeout,
+    queueTimeout,
+    projectDir
+  } = parseResult.data;
+  try {
+    validatePathSegment(sessionId, "researchSessionID");
+  } catch (error2) {
+    return [
+      "=== Invalid Session ID ===",
+      "",
+      `Error: ${error2.message}`,
+      "",
+      "Session IDs must be safe path segments without:",
+      "  - Path separators (/ or \\)",
+      "  - Parent directory references (..)",
+      "  - Null bytes",
+      "  - Windows reserved names (CON, PRN, etc.)"
+    ].join("\n");
+  }
+  if (action === "execute" && !code) {
+    return [
+      "=== Missing Code ===",
+      "",
+      'The "execute" action requires the "code" parameter.',
+      "",
+      "Example:",
+      '  action: "execute"',
+      `  code: "print('Hello!')"`
+    ].join("\n");
+  }
+  const lock = new SessionLock(sessionId);
+  try {
+    await lock.acquire(queueTimeout);
+  } catch (error2) {
+    if (error2 instanceof LockTimeoutError) {
+      return formatLockTimeoutError(error2, sessionId);
+    }
+    return formatGeneralError(error2, sessionId, action);
+  }
+  try {
+    let meta;
+    try {
+      meta = await ensureBridge(sessionId, projectDir);
+    } catch (error2) {
+      return [
+        "=== Bridge Startup Failed ===",
+        `Session: ${sessionId}`,
+        "",
+        `Error: ${error2.message}`,
+        "",
+        "Ensure you have a Python virtual environment:",
+        "  python -m venv .venv",
+        "  .venv/bin/pip install pandas numpy matplotlib"
+      ].join("\n");
+    }
+    switch (action) {
+      case "execute":
+        try {
+          return await handleExecute(
+            sessionId,
+            meta.socketPath,
+            code,
+            executionTimeout,
+            executionLabel
+          );
+        } catch (error2) {
+          if (error2 instanceof SocketConnectionError) {
+            try {
+              meta = await spawnBridgeServer(sessionId, projectDir);
+              return await handleExecute(
+                sessionId,
+                meta.socketPath,
+                code,
+                executionTimeout,
+                executionLabel
+              );
+            } catch (retryError) {
+              return formatSocketError(
+                retryError instanceof SocketConnectionError ? retryError : new SocketConnectionError(retryError.message, meta.socketPath),
+                sessionId
+              );
+            }
+          }
+          return formatGeneralError(error2, sessionId, action);
+        }
+      case "reset":
+        return await handleReset(sessionId, meta.socketPath);
+      case "get_state":
+        try {
+          return await handleGetState(sessionId, meta.socketPath);
+        } catch (error2) {
+          if (error2 instanceof SocketConnectionError) {
+            return formatSocketError(error2, sessionId);
+          }
+          return formatGeneralError(error2, sessionId, action);
+        }
+      case "interrupt":
+        return await handleInterrupt(sessionId, meta.socketPath);
+      default:
+        return [
+          "=== Unknown Action ===",
+          "",
+          `Received action: ${action}`,
+          "",
+          "Valid actions are:",
+          "  - execute: Run Python code",
+          "  - interrupt: Stop running code",
+          "  - reset: Clear the namespace",
+          "  - get_state: Get memory and variable info"
+        ].join("\n");
+    }
+  } finally {
+    await lock.release();
+  }
+}
+var pythonReplTool = {
+  name: "python_repl",
+  description: "Execute Python code in a persistent REPL environment. Variables and state persist between calls within the same session. Actions: execute (run code), interrupt (stop execution), reset (clear state), get_state (view memory/variables). Supports scientific computing with pandas, numpy, matplotlib.",
+  schema: pythonReplSchema.shape,
+  handler: async (args) => {
+    const output = await pythonReplHandler(args);
+    return {
+      content: [{ type: "text", text: output }]
+    };
+  }
+};
+
 // src/mcp/standalone-server.ts
+var allTools = [
+  ...lspTools,
+  ...astTools,
+  pythonReplTool
+];
 function zodToJsonSchema2(schema) {
   const rawShape = schema instanceof external_exports.ZodObject ? schema.shape : schema;
   const properties = {};
@@ -19094,7 +20903,7 @@ var server = new Server(
 );
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
-    tools: lspTools.map((tool) => ({
+    tools: allTools.map((tool) => ({
       name: tool.name,
       description: tool.description,
       inputSchema: zodToJsonSchema2(tool.schema)
@@ -19103,7 +20912,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 });
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
-  const tool = lspTools.find((t) => t.name === name);
+  const tool = allTools.find((t) => t.name === name);
   if (!tool) {
     return {
       content: [{ type: "text", text: `Unknown tool: ${name}` }],

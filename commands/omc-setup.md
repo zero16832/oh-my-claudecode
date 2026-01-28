@@ -194,6 +194,40 @@ Skip this step. User can install later with `npm install -g oh-my-claude-sisyphu
 grep -q "oh-my-claudecode" ~/.claude/settings.json && echo "Plugin verified" || echo "Plugin NOT found - run: claude /install-plugin oh-my-claudecode"
 ```
 
+## Step 4.5: Install AST Tools (Optional)
+
+The plugin includes AST-aware code search and transformation tools (`ast_grep_search`, `ast_grep_replace`) that require `@ast-grep/napi`.
+
+Ask user: "Would you like to install AST tools for advanced code search? (Pattern-based AST matching across 17 languages)"
+
+**Options:**
+1. **Yes (Recommended)** - Install `@ast-grep/napi` for AST-powered search/replace
+2. **No** - Skip, AST tools will show helpful error when used
+
+### If User Chooses YES:
+
+```bash
+# Check for npm
+if command -v npm &> /dev/null; then
+  echo "Installing @ast-grep/napi..."
+  npm install -g @ast-grep/napi
+  if npm list -g @ast-grep/napi &>/dev/null; then
+    echo "✓ AST tools installed successfully!"
+    echo "  Available tools: ast_grep_search, ast_grep_replace"
+    echo "  Supports: JavaScript, TypeScript, Python, Go, Rust, Java, and 11 more languages"
+  else
+    echo "⚠ Installation may have failed. You can install later with: npm install -g @ast-grep/napi"
+  fi
+else
+  echo "ERROR: npm not found. Please install Node.js first."
+  echo "You can install later with: npm install -g @ast-grep/napi"
+fi
+```
+
+### If User Chooses NO:
+
+Skip this step. AST tools will gracefully degrade with a helpful installation message when used.
+
 ## Step 5: Offer MCP Server Configuration
 
 MCP servers extend Claude Code with additional tools (web search, GitHub, etc.).
@@ -255,6 +289,11 @@ CLI ANALYTICS (if installed):
 - omc stats     - View token usage and costs
 - omc agents    - See agent breakdown by cost
 - omc tui       - Launch interactive TUI dashboard
+
+AST TOOLS (if installed):
+- ast_grep_search  - Pattern-based AST code search
+- ast_grep_replace - AST-aware code transformations
+- Supports 17 languages including TS, Python, Go, Rust
 
 That's it! Just use Claude Code normally.
 ```

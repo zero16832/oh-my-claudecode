@@ -9,8 +9,7 @@ import { readdirSync, statSync } from 'fs';
 import { join, extname } from 'path';
 import { lspClientManager } from '../lsp/index.js';
 import type { Diagnostic } from '../lsp/index.js';
-import { LSP_DIAGNOSTICS_WAIT_MS } from './constants.js';
-import { LSP_SERVERS } from '../lsp/servers.js';
+import { LSP_DIAGNOSTICS_WAIT_MS } from './index.js';
 
 export interface LspDiagnosticWithFile {
   file: string;
@@ -23,35 +22,6 @@ export interface LspAggregationResult {
   errorCount: number;
   warningCount: number;
   filesChecked: number;
-}
-
-let _cachedExtensions: string[] | null = null;
-
-/**
- * Get all file extensions supported by configured LSP servers.
- * Cached at module level because LSP_SERVERS is a static configuration.
- * Call invalidateExtensionCache() if LSP_SERVERS is ever made dynamic.
- */
-export function getAllSupportedExtensions(): string[] {
-  if (_cachedExtensions) return _cachedExtensions;
-
-  const extensions = new Set<string>();
-  for (const config of Object.values(LSP_SERVERS)) {
-    for (const ext of config.extensions) {
-      extensions.add(ext);
-    }
-  }
-  _cachedExtensions = Array.from(extensions);
-  return _cachedExtensions;
-}
-
-/**
- * Invalidate the cached extensions list.
- * Call this if LSP_SERVERS is modified at runtime.
- * Currently LSP_SERVERS is a static const, so this is for future-proofing.
- */
-export function invalidateExtensionCache(): void {
-  _cachedExtensions = null;
 }
 
 /**
@@ -100,16 +70,15 @@ function findFiles(directory: string, extensions: string[], ignoreDirs: string[]
 /**
  * Run LSP diagnostics on all TypeScript/JavaScript files in a directory
  * @param directory - Project directory to scan
- * @param extensions - File extensions to check (optional, defaults to all LSP-supported extensions)
+ * @param extensions - File extensions to check (default: ['.ts', '.tsx', '.js', '.jsx'])
  * @returns Aggregated diagnostics from all files
  */
 export async function runLspAggregatedDiagnostics(
   directory: string,
-  extensions?: string[]
+  extensions: string[] = ['.ts', '.tsx', '.js', '.jsx']
 ): Promise<LspAggregationResult> {
-  const effectiveExtensions = extensions ?? getAllSupportedExtensions();
   // Find all matching files
-  const files = findFiles(directory, effectiveExtensions, ['node_modules', 'dist', 'build', '.git']);
+  const files = findFiles(directory, extensions, ['node_modules', 'dist', 'build', '.git']);
 
   const allDiagnostics: LspDiagnosticWithFile[] = [];
   let filesChecked = 0;

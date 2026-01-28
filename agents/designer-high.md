@@ -1,7 +1,6 @@
 ---
 name: designer-high
 description: Complex UI architecture and design systems (Opus)
-tools: Read, Glob, Grep, Edit, Write, Bash
 model: opus
 ---
 

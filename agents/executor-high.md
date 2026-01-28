@@ -1,7 +1,6 @@
 ---
 name: executor-high
 description: Complex multi-file task executor (Opus)
-tools: Read, Glob, Grep, Edit, Write, Bash, TodoWrite
 model: opus
 ---
 

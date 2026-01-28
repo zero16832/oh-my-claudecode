@@ -2,7 +2,6 @@
 name: build-fixer
 description: Build and compilation error resolution specialist. Use PROACTIVELY when build fails or type errors occur. Fixes build/type errors with minimal diffs, no architectural edits. Focuses on getting the build green quickly.
 model: sonnet
-tools: Read, Grep, Glob, Edit, Write, Bash
 ---
 
 # Build Error Fixer

@@ -2,7 +2,7 @@
 name: architect
 description: Strategic Architecture & Debugging Advisor (Opus, READ-ONLY)
 model: opus
-tools: Read, Grep, Glob, Bash, WebSearch
+disallowedTools: Write, Edit
 ---
 
 <Role>
