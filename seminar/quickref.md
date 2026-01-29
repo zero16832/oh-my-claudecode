@@ -126,7 +126,7 @@ Before claiming completion:
 - **Generic "fast"/"parallel"** → Uses config `defaultExecutionMode` (default: `ultrawork`)
 - **State cleanup:** `/cancel --all` clears all states
 - **Resume background:** Use `resume-session` tool for interrupted agents
-- **LSP diagnostics:** Full project type checking with `lsp_diagnostics_directory`
+- **LSP diagnostics:** Full project type checking with `lsp_diagnostics_Dir`
 
 ## Resources
 - **GitHub:** github.com/Yeachan-Heo/oh-my-claudecode

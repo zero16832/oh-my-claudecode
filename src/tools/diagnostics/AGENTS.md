@@ -10,7 +10,7 @@ Project-level diagnostics via TypeScript compiler (tsc) or LSP aggregation.
 This directory provides project-wide type checking and error detection:
 - **Primary**: `tsc --noEmit` for fast, comprehensive TypeScript checking
 - **Fallback**: LSP iteration when tsc is unavailable
-- Powers the `lsp_diagnostics_directory` tool
+- Powers the `lsp_diagnostics_Dir` tool
 
 ## Key Files
 

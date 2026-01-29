@@ -443,7 +443,7 @@ export const lspDiagnosticsDirectoryTool: ToolDefinition<{
   directory: z.ZodString;
   strategy: z.ZodOptional<z.ZodEnum<['tsc', 'lsp', 'auto']>>;
 }> = {
-  name: 'lsp_diagnostics_directory',
+  name: 'lsp_diagnostics_Dir',
   description: 'Run project-level diagnostics on a directory using tsc --noEmit (preferred) or LSP iteration (fallback). Useful for checking the entire codebase for errors.',
   schema: {
     directory: z.string().describe('Project directory to check'),

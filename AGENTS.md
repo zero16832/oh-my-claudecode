@@ -62,7 +62,7 @@ oh-my-claudecode enhances Claude Code with:
    - `lsp_document_symbols` - Get file outline
    - `lsp_workspace_symbols` - Search symbols across workspace
    - `lsp_diagnostics` - Get errors/warnings for single file
-   - `lsp_diagnostics_directory` - **Project-wide type checking** (uses tsc or LSP)
+   - `lsp_diagnostics_Dir` - **Project-wide type checking** (uses tsc or LSP)
    - `lsp_rename` - Preview refactoring across files
    - `lsp_code_actions` - Get available quick fixes
    - `ast_grep_search` - Structural code search with patterns
@@ -166,7 +166,7 @@ lsp_find_references    // Find all usages
 lsp_document_symbols   // File outline
 lsp_workspace_symbols  // Cross-workspace symbol search
 lsp_diagnostics        // Single file errors/warnings
-lsp_diagnostics_directory  // PROJECT-WIDE type checking
+lsp_diagnostics_Dir  // PROJECT-WIDE type checking
 lsp_servers            // List available language servers
 lsp_prepare_rename     // Check if rename is valid
 lsp_rename             // Preview multi-file rename

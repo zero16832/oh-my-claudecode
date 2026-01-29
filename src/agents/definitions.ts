@@ -88,7 +88,7 @@ export const architectMediumAgent: AgentConfig = {
   name: 'architect-medium',
   description: 'Architecture & Debugging Advisor - Medium complexity (Sonnet). Use for moderate analysis.',
   prompt: loadAgentPrompt('architect-medium'),
-  tools: ['Read', 'Glob', 'Grep', 'WebSearch', 'WebFetch', 'lsp_diagnostics', 'lsp_diagnostics_directory', 'ast_grep_search'],
+  tools: ['Read', 'Glob', 'Grep', 'WebSearch', 'WebFetch', 'lsp_diagnostics', 'lsp_diagnostics_Dir', 'ast_grep_search'],
   model: 'sonnet',
   defaultModel: 'sonnet'
 };
@@ -112,7 +112,7 @@ export const executorHighAgent: AgentConfig = {
   name: 'executor-high',
   description: 'Complex task executor for multi-file changes (Opus). Use for tasks requiring deep reasoning.',
   prompt: loadAgentPrompt('executor-high'),
-  tools: ['Read', 'Glob', 'Grep', 'Edit', 'Write', 'Bash', 'TodoWrite', 'lsp_diagnostics', 'lsp_diagnostics_directory', 'ast_grep_search', 'ast_grep_replace'],
+  tools: ['Read', 'Glob', 'Grep', 'Edit', 'Write', 'Bash', 'TodoWrite', 'lsp_diagnostics', 'lsp_diagnostics_Dir', 'ast_grep_search', 'ast_grep_replace'],
   model: 'opus',
   defaultModel: 'opus'
 };
@@ -260,7 +260,7 @@ export const buildFixerAgent: AgentConfig = {
   name: 'build-fixer',
   description: 'Build and compilation error resolution specialist (Sonnet). Use for fixing build/type errors in any language.',
   prompt: loadAgentPrompt('build-fixer'),
-  tools: ['Read', 'Grep', 'Glob', 'Edit', 'Write', 'Bash', 'lsp_diagnostics', 'lsp_diagnostics_directory'],
+  tools: ['Read', 'Grep', 'Glob', 'Edit', 'Write', 'Bash', 'lsp_diagnostics', 'lsp_diagnostics_Dir'],
   model: 'sonnet',
   defaultModel: 'sonnet'
 };
@@ -272,7 +272,7 @@ export const buildFixerLowAgent: AgentConfig = {
   name: 'build-fixer-low',
   description: 'Simple build error fixer (Haiku). Use for trivial type errors and single-line fixes.',
   prompt: loadAgentPrompt('build-fixer-low'),
-  tools: ['Read', 'Grep', 'Glob', 'Edit', 'Write', 'Bash', 'lsp_diagnostics', 'lsp_diagnostics_directory'],
+  tools: ['Read', 'Grep', 'Glob', 'Edit', 'Write', 'Bash', 'lsp_diagnostics', 'lsp_diagnostics_Dir'],
   model: 'haiku',
   defaultModel: 'haiku'
 };

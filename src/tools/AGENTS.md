@@ -60,7 +60,7 @@ lsp_workspace_symbols({ query: "createSession", file: "src/index.ts" })
 lsp_diagnostics({ file: "src/index.ts", severity: "error" })
 
 // PROJECT-WIDE type checking (RECOMMENDED)
-lsp_diagnostics_directory({ directory: ".", strategy: "auto" })
+lsp_diagnostics_Dir({ directory: ".", strategy: "auto" })
 ```
 
 **Refactoring support:**
@@ -117,7 +117,7 @@ ast_grep_replace({
 
 #### Diagnostics Strategy
 
-The `lsp_diagnostics_directory` tool supports two strategies:
+The `lsp_diagnostics_Dir` tool supports two strategies:
 
 | Strategy | When Used | Speed | Accuracy |
 |----------|-----------|-------|----------|
@@ -196,7 +196,7 @@ async function withLspClient(filePath, operation, fn) {
 | `lsp_document_symbols` | File outline |
 | `lsp_workspace_symbols` | Cross-workspace symbol search |
 | `lsp_diagnostics` | Single file errors/warnings |
-| `lsp_diagnostics_directory` | **Project-wide type checking** |
+| `lsp_diagnostics_Dir` | **Project-wide type checking** |
 | `lsp_servers` | List available language servers |
 | `lsp_prepare_rename` | Check if rename is valid |
 | `lsp_rename` | Preview multi-file rename |

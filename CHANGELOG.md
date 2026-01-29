@@ -71,7 +71,7 @@ In-process MCP server exposing 15 custom tools to Claude Code subagents via the 
   - Configurable tool filtering via `getOmcToolNames()`
 
 - **15 Custom Tools Exposed**
-  - **12 LSP Tools**: `lsp_hover`, `lsp_definition`, `lsp_references`, `lsp_completion`, `lsp_signature_help`, `lsp_rename`, `lsp_code_actions`, `lsp_formatting`, `lsp_symbols`, `lsp_diagnostics`, `lsp_diagnostics_directory`, `lsp_semantic_tokens`
+  - **12 LSP Tools**: `lsp_hover`, `lsp_definition`, `lsp_references`, `lsp_completion`, `lsp_signature_help`, `lsp_rename`, `lsp_code_actions`, `lsp_formatting`, `lsp_symbols`, `lsp_diagnostics`, `lsp_diagnostics_Dir`, `lsp_semantic_tokens`
   - **2 AST Tools**: `ast_query`, `ast_query_multi`
   - **1 Python Tool**: `python_repl` (persistent REPL with session management)
 

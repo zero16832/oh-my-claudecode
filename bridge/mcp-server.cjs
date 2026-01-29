@@ -210,7 +210,7 @@ var require_scope = __commonJS({
       }
     };
     var UsedValueState;
-    (function(UsedValueState2) {
+    (function (UsedValueState2) {
       UsedValueState2[UsedValueState2["Started"] = 0] = "Started";
       UsedValueState2[UsedValueState2["Completed"] = 1] = "Completed";
     })(UsedValueState || (exports2.UsedValueState = UsedValueState = {}));
@@ -350,43 +350,67 @@ var require_codegen = __commonJS({
     var code_1 = require_code();
     var scope_1 = require_scope();
     var code_2 = require_code();
-    Object.defineProperty(exports2, "_", { enumerable: true, get: function() {
-      return code_2._;
-    } });
-    Object.defineProperty(exports2, "str", { enumerable: true, get: function() {
-      return code_2.str;
-    } });
-    Object.defineProperty(exports2, "strConcat", { enumerable: true, get: function() {
-      return code_2.strConcat;
-    } });
-    Object.defineProperty(exports2, "nil", { enumerable: true, get: function() {
-      return code_2.nil;
-    } });
-    Object.defineProperty(exports2, "getProperty", { enumerable: true, get: function() {
-      return code_2.getProperty;
-    } });
-    Object.defineProperty(exports2, "stringify", { enumerable: true, get: function() {
-      return code_2.stringify;
-    } });
-    Object.defineProperty(exports2, "regexpCode", { enumerable: true, get: function() {
-      return code_2.regexpCode;
-    } });
-    Object.defineProperty(exports2, "Name", { enumerable: true, get: function() {
-      return code_2.Name;
-    } });
+    Object.defineProperty(exports2, "_", {
+      enumerable: true, get: function () {
+        return code_2._;
+      }
+    });
+    Object.defineProperty(exports2, "str", {
+      enumerable: true, get: function () {
+        return code_2.str;
+      }
+    });
+    Object.defineProperty(exports2, "strConcat", {
+      enumerable: true, get: function () {
+        return code_2.strConcat;
+      }
+    });
+    Object.defineProperty(exports2, "nil", {
+      enumerable: true, get: function () {
+        return code_2.nil;
+      }
+    });
+    Object.defineProperty(exports2, "getProperty", {
+      enumerable: true, get: function () {
+        return code_2.getProperty;
+      }
+    });
+    Object.defineProperty(exports2, "stringify", {
+      enumerable: true, get: function () {
+        return code_2.stringify;
+      }
+    });
+    Object.defineProperty(exports2, "regexpCode", {
+      enumerable: true, get: function () {
+        return code_2.regexpCode;
+      }
+    });
+    Object.defineProperty(exports2, "Name", {
+      enumerable: true, get: function () {
+        return code_2.Name;
+      }
+    });
     var scope_2 = require_scope();
-    Object.defineProperty(exports2, "Scope", { enumerable: true, get: function() {
-      return scope_2.Scope;
-    } });
-    Object.defineProperty(exports2, "ValueScope", { enumerable: true, get: function() {
-      return scope_2.ValueScope;
-    } });
-    Object.defineProperty(exports2, "ValueScopeName", { enumerable: true, get: function() {
-      return scope_2.ValueScopeName;
-    } });
-    Object.defineProperty(exports2, "varKinds", { enumerable: true, get: function() {
-      return scope_2.varKinds;
-    } });
+    Object.defineProperty(exports2, "Scope", {
+      enumerable: true, get: function () {
+        return scope_2.Scope;
+      }
+    });
+    Object.defineProperty(exports2, "ValueScope", {
+      enumerable: true, get: function () {
+        return scope_2.ValueScope;
+      }
+    });
+    Object.defineProperty(exports2, "ValueScopeName", {
+      enumerable: true, get: function () {
+        return scope_2.ValueScopeName;
+      }
+    });
+    Object.defineProperty(exports2, "varKinds", {
+      enumerable: true, get: function () {
+        return scope_2.varKinds;
+      }
+    });
     exports2.operators = {
       GT: new code_1._Code(">"),
       GTE: new code_1._Code(">="),
@@ -1204,7 +1228,7 @@ var require_util = __commonJS({
     }
     exports2.useFunc = useFunc;
     var Type;
-    (function(Type2) {
+    (function (Type2) {
       Type2[Type2["Num"] = 0] = "Num";
       Type2[Type2["Str"] = 1] = "Str";
     })(Type || (exports2.Type = Type = {}));
@@ -1506,7 +1530,7 @@ var require_dataType = __commonJS({
     var codegen_1 = require_codegen();
     var util_1 = require_util();
     var DataType;
-    (function(DataType2) {
+    (function (DataType2) {
       DataType2[DataType2["Correct"] = 0] = "Correct";
       DataType2[DataType2["Wrong"] = 1] = "Wrong";
     })(DataType || (exports2.DataType = DataType = {}));
@@ -2061,7 +2085,7 @@ var require_fast_deep_equal = __commonJS({
         if (Array.isArray(a)) {
           length = a.length;
           if (length != b.length) return false;
-          for (i = length; i-- !== 0; )
+          for (i = length; i-- !== 0;)
             if (!equal(a[i], b[i])) return false;
           return true;
         }
@@ -2071,9 +2095,9 @@ var require_fast_deep_equal = __commonJS({
         keys = Object.keys(a);
         length = keys.length;
         if (length !== Object.keys(b).length) return false;
-        for (i = length; i-- !== 0; )
+        for (i = length; i-- !== 0;)
           if (!Object.prototype.hasOwnProperty.call(b, keys[i])) return false;
-        for (i = length; i-- !== 0; ) {
+        for (i = length; i-- !== 0;) {
           var key = keys[i];
           if (!equal(a[key], b[key])) return false;
         }
@@ -2088,15 +2112,15 @@ var require_fast_deep_equal = __commonJS({
 var require_json_schema_traverse = __commonJS({
   "node_modules/json-schema-traverse/index.js"(exports2, module2) {
     "use strict";
-    var traverse = module2.exports = function(schema, opts, cb) {
+    var traverse = module2.exports = function (schema, opts, cb) {
       if (typeof opts == "function") {
         cb = opts;
         opts = {};
       }
       cb = opts.cb || cb;
-      var pre = typeof cb == "function" ? cb : cb.pre || function() {
+      var pre = typeof cb == "function" ? cb : cb.pre || function () {
       };
-      var post = cb.post || function() {
+      var post = cb.post || function () {
       };
       _traverse(opts, pre, post, schema, "", schema);
     };
@@ -3568,7 +3592,7 @@ var require_schemes = __commonJS({
       ] || SCHEMES[
         /** @type {SchemeName} */
         scheme.toLowerCase()
-      ]) || void 0;
+        ]) || void 0;
     }
     module2.exports = {
       wsIsSecure,
@@ -3588,10 +3612,10 @@ var require_fast_uri = __commonJS({
     function normalize(uri, options) {
       if (typeof uri === "string") {
         uri = /** @type {T} */
-        serialize(parse5(uri, options), options);
+          serialize(parse5(uri, options), options);
       } else if (typeof uri === "object") {
         uri = /** @type {T} */
-        parse5(serialize(uri, options), options);
+          parse5(serialize(uri, options), options);
       }
       return uri;
     }
@@ -3852,28 +3876,42 @@ var require_core = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.CodeGen = exports2.Name = exports2.nil = exports2.stringify = exports2.str = exports2._ = exports2.KeywordCxt = void 0;
     var validate_1 = require_validate();
-    Object.defineProperty(exports2, "KeywordCxt", { enumerable: true, get: function() {
-      return validate_1.KeywordCxt;
-    } });
+    Object.defineProperty(exports2, "KeywordCxt", {
+      enumerable: true, get: function () {
+        return validate_1.KeywordCxt;
+      }
+    });
     var codegen_1 = require_codegen();
-    Object.defineProperty(exports2, "_", { enumerable: true, get: function() {
-      return codegen_1._;
-    } });
-    Object.defineProperty(exports2, "str", { enumerable: true, get: function() {
-      return codegen_1.str;
-    } });
-    Object.defineProperty(exports2, "stringify", { enumerable: true, get: function() {
-      return codegen_1.stringify;
-    } });
-    Object.defineProperty(exports2, "nil", { enumerable: true, get: function() {
-      return codegen_1.nil;
-    } });
-    Object.defineProperty(exports2, "Name", { enumerable: true, get: function() {
-      return codegen_1.Name;
-    } });
-    Object.defineProperty(exports2, "CodeGen", { enumerable: true, get: function() {
-      return codegen_1.CodeGen;
-    } });
+    Object.defineProperty(exports2, "_", {
+      enumerable: true, get: function () {
+        return codegen_1._;
+      }
+    });
+    Object.defineProperty(exports2, "str", {
+      enumerable: true, get: function () {
+        return codegen_1.str;
+      }
+    });
+    Object.defineProperty(exports2, "stringify", {
+      enumerable: true, get: function () {
+        return codegen_1.stringify;
+      }
+    });
+    Object.defineProperty(exports2, "nil", {
+      enumerable: true, get: function () {
+        return codegen_1.nil;
+      }
+    });
+    Object.defineProperty(exports2, "Name", {
+      enumerable: true, get: function () {
+        return codegen_1.Name;
+      }
+    });
+    Object.defineProperty(exports2, "CodeGen", {
+      enumerable: true, get: function () {
+        return codegen_1.CodeGen;
+      }
+    });
     var validation_error_1 = require_validation_error();
     var ref_error_1 = require_ref_error();
     var rules_1 = require_rules();
@@ -4373,10 +4411,12 @@ var require_core = __commonJS({
         delete metaOpts[opt];
       return metaOpts;
     }
-    var noLogs = { log() {
-    }, warn() {
-    }, error() {
-    } };
+    var noLogs = {
+      log() {
+      }, warn() {
+      }, error() {
+      }
+    };
     function getLogger(logger) {
       if (logger === false)
         return noLogs;
@@ -6146,7 +6186,7 @@ var require_types = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.DiscrError = void 0;
     var DiscrError;
-    (function(DiscrError2) {
+    (function (DiscrError2) {
       DiscrError2["Tag"] = "tag";
       DiscrError2["Mapping"] = "mapping";
     })(DiscrError || (exports2.DiscrError = DiscrError = {}));
@@ -6452,36 +6492,54 @@ var require_ajv = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.default = Ajv2;
     var validate_1 = require_validate();
-    Object.defineProperty(exports2, "KeywordCxt", { enumerable: true, get: function() {
-      return validate_1.KeywordCxt;
-    } });
+    Object.defineProperty(exports2, "KeywordCxt", {
+      enumerable: true, get: function () {
+        return validate_1.KeywordCxt;
+      }
+    });
     var codegen_1 = require_codegen();
-    Object.defineProperty(exports2, "_", { enumerable: true, get: function() {
-      return codegen_1._;
-    } });
-    Object.defineProperty(exports2, "str", { enumerable: true, get: function() {
-      return codegen_1.str;
-    } });
-    Object.defineProperty(exports2, "stringify", { enumerable: true, get: function() {
-      return codegen_1.stringify;
-    } });
-    Object.defineProperty(exports2, "nil", { enumerable: true, get: function() {
-      return codegen_1.nil;
-    } });
-    Object.defineProperty(exports2, "Name", { enumerable: true, get: function() {
-      return codegen_1.Name;
-    } });
-    Object.defineProperty(exports2, "CodeGen", { enumerable: true, get: function() {
-      return codegen_1.CodeGen;
-    } });
+    Object.defineProperty(exports2, "_", {
+      enumerable: true, get: function () {
+        return codegen_1._;
+      }
+    });
+    Object.defineProperty(exports2, "str", {
+      enumerable: true, get: function () {
+        return codegen_1.str;
+      }
+    });
+    Object.defineProperty(exports2, "stringify", {
+      enumerable: true, get: function () {
+        return codegen_1.stringify;
+      }
+    });
+    Object.defineProperty(exports2, "nil", {
+      enumerable: true, get: function () {
+        return codegen_1.nil;
+      }
+    });
+    Object.defineProperty(exports2, "Name", {
+      enumerable: true, get: function () {
+        return codegen_1.Name;
+      }
+    });
+    Object.defineProperty(exports2, "CodeGen", {
+      enumerable: true, get: function () {
+        return codegen_1.CodeGen;
+      }
+    });
     var validation_error_1 = require_validation_error();
-    Object.defineProperty(exports2, "ValidationError", { enumerable: true, get: function() {
-      return validation_error_1.default;
-    } });
+    Object.defineProperty(exports2, "ValidationError", {
+      enumerable: true, get: function () {
+        return validation_error_1.default;
+      }
+    });
     var ref_error_1 = require_ref_error();
-    Object.defineProperty(exports2, "MissingRefError", { enumerable: true, get: function() {
-      return ref_error_1.default;
-    } });
+    Object.defineProperty(exports2, "MissingRefError", {
+      enumerable: true, get: function () {
+        return ref_error_1.default;
+      }
+    });
   }
 });
 
@@ -6916,7 +6974,7 @@ __export(external_exports, {
 
 // node_modules/zod/v3/helpers/util.js
 var util;
-(function(util2) {
+(function (util2) {
   util2.assertEqual = (_) => {
   };
   function assertIs2(_arg) {
@@ -6942,7 +7000,7 @@ var util;
     return util2.objectValues(filtered);
   };
   util2.objectValues = (obj) => {
-    return util2.objectKeys(obj).map(function(e) {
+    return util2.objectKeys(obj).map(function (e) {
       return obj[e];
     });
   };
@@ -6975,7 +7033,7 @@ var util;
   };
 })(util || (util = {}));
 var objectUtil;
-(function(objectUtil2) {
+(function (objectUtil2) {
   objectUtil2.mergeShapes = (first, second) => {
     return {
       ...first,
@@ -7094,7 +7152,7 @@ var ZodError = class _ZodError extends Error {
     this.issues = issues;
   }
   format(_mapper) {
-    const mapper = _mapper || function(issue2) {
+    const mapper = _mapper || function (issue2) {
       return issue2.message;
     };
     const fieldErrors = { _errors: [] };
@@ -7390,7 +7448,7 @@ var isAsync = (x) => typeof Promise !== "undefined" && x instanceof Promise;
 
 // node_modules/zod/v3/helpers/errorUtil.js
 var errorUtil;
-(function(errorUtil2) {
+(function (errorUtil2) {
   errorUtil2.errToObj = (message) => typeof message === "string" ? { message } : message || {};
   errorUtil2.toString = (message) => typeof message === "string" ? message : message?.message;
 })(errorUtil || (errorUtil = {}));
@@ -10109,7 +10167,7 @@ var ZodFunction = class _ZodFunction extends ZodType {
     const fn = ctx.data;
     if (this._def.returns instanceof ZodPromise) {
       const me = this;
-      return OK(async function(...args) {
+      return OK(async function (...args) {
         const error2 = new ZodError([]);
         const parsedArgs = await me._def.args.parseAsync(args, params).catch((e) => {
           error2.addIssue(makeArgsIssue(args, e));
@@ -10124,7 +10182,7 @@ var ZodFunction = class _ZodFunction extends ZodType {
       });
     } else {
       const me = this;
-      return OK(function(...args) {
+      return OK(function (...args) {
         const parsedArgs = me._def.args.safeParse(args, params);
         if (!parsedArgs.success) {
           throw new ZodError([makeArgsIssue(args, parsedArgs.error)]);
@@ -10753,7 +10811,7 @@ var late = {
   object: ZodObject.lazycreate
 };
 var ZodFirstPartyTypeKind;
-(function(ZodFirstPartyTypeKind2) {
+(function (ZodFirstPartyTypeKind2) {
   ZodFirstPartyTypeKind2["ZodString"] = "ZodString";
   ZodFirstPartyTypeKind2["ZodNumber"] = "ZodNumber";
   ZodFirstPartyTypeKind2["ZodNaN"] = "ZodNaN";
@@ -11462,7 +11520,7 @@ function flattenError(error2, mapper = (issue2) => issue2.message) {
   return { formErrors, fieldErrors };
 }
 function formatError(error2, _mapper) {
-  const mapper = _mapper || function(issue2) {
+  const mapper = _mapper || function (issue2) {
     return issue2.message;
   };
   const fieldErrors = { _errors: [] };
@@ -14729,7 +14787,7 @@ var JSONRPCResultResponseSchema = object2({
 }).strict();
 var isJSONRPCResultResponse = (value) => JSONRPCResultResponseSchema.safeParse(value).success;
 var ErrorCode;
-(function(ErrorCode2) {
+(function (ErrorCode2) {
   ErrorCode2[ErrorCode2["ConnectionClosed"] = -32e3] = "ConnectionClosed";
   ErrorCode2[ErrorCode2["RequestTimeout"] = -32001] = "RequestTimeout";
   ErrorCode2[ErrorCode2["ParseError"] = -32700] = "ParseError";
@@ -18982,7 +19040,7 @@ Command: ${action.command.title} (${action.command.command})`;
   }
 };
 var lspDiagnosticsDirectoryTool = {
-  name: "lsp_diagnostics_directory",
+  name: "lsp_diagnostics_Dir",
   description: "Run project-level diagnostics on a directory using tsc --noEmit (preferred) or LSP iteration (fallback). Useful for checking the entire codebase for errors.",
   schema: {
     directory: external_exports.string().describe("Project directory to check"),

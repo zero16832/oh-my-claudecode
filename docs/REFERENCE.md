@@ -456,7 +456,7 @@ pipeline: analyze → fix → test this bug
 | `lsp_code_actions` | ✅ Implemented | Get available refactorings |
 | `lsp_code_action_resolve` | ✅ Implemented | Get details of a code action |
 | `lsp_servers` | ✅ Implemented | List available language servers |
-| `lsp_diagnostics_directory` | ✅ Implemented | Project-level type checking |
+| `lsp_diagnostics_Dir` | ✅ Implemented | Project-level type checking |
 
 > **Note**: LSP tools require language servers to be installed (typescript-language-server, pylsp, rust-analyzer, gopls, etc.). Use `lsp_servers` to check installation status.
 

@@ -345,7 +345,7 @@ Semantic task categorization that auto-maps to model tier, temperature, and thin
 
 ### Directory Diagnostics Tool
 
-Project-level type checking via `lsp_diagnostics_directory` tool.
+Project-level type checking via `lsp_diagnostics_Dir` tool.
 
 **Strategies:**
 - `auto` (default) - Auto-selects best strategy, prefers tsc when tsconfig.json exists
