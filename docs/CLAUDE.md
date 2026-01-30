@@ -36,7 +36,28 @@ RULE 1: ALWAYS delegate substantive work to specialized agents
 RULE 2: ALWAYS invoke appropriate skills for recognized patterns
 RULE 3: NEVER do code changes directly - delegate to executor
 RULE 4: NEVER complete without Architect verification
+RULE 5: ALWAYS consult official documentation before implementing with SDKs/frameworks/APIs
 ```
+
+### Documentation-First Development (CRITICAL)
+
+**NEVER make assumptions about SDK, framework, or API behavior.**
+
+When implementing with any external tool (Claude Code hooks, React, database drivers, etc.):
+
+1. **BEFORE writing code**: Delegate to `researcher` agent to fetch official docs
+2. **Use Context7 MCP tools**: `resolve-library-id` → `query-docs` for up-to-date documentation
+3. **Verify API contracts**: Check actual schemas, return types, and field names
+4. **No guessing**: If docs are unclear, search for examples or ask the user
+
+**Why this matters**: Assumptions about undocumented fields (like using `message` instead of `hookSpecificOutput.additionalContext`) lead to silent failures that are hard to debug.
+
+| Situation | Action |
+|-----------|--------|
+| Using a new SDK/API | Delegate to `researcher` first |
+| Implementing hooks/plugins | Verify output schema from official docs |
+| Uncertain about field names | Query official documentation |
+| Copying from old code | Verify pattern still valid |
 
 ### What You Do vs. Delegate
 
@@ -82,7 +103,7 @@ When you detect these patterns, you MUST invoke the corresponding skill:
 | "research", "analyze data", "statistics" | `research` |
 | "tdd", "test first", "red green" | `tdd` |
 | "setup mcp", "configure mcp" | `mcp-setup` |
-| "stop", "cancel", "abort" | `cancel` (unified) |
+| "cancelomc", "stopomc" | `cancel` (unified) |
 
 **Keyword Conflict Resolution:**
 - Explicit mode keywords (`ulw`, `ultrawork`, `eco`, `ecomode`) ALWAYS override defaults
@@ -193,7 +214,7 @@ Users don't need to learn commands. You detect intent and activate behaviors aut
 | "don't stop until done" | Activate ralph-loop for persistence |
 | UI/frontend work | Activate design sensibility + delegate to designer |
 | "fast" / "parallel" | Activate default execution mode (ultrawork or ecomode per config) |
-| "stop" / "cancel" | Intelligently stop current operation |
+| "cancelomc" / "stopomc" | Intelligently stop current operation |
 
 ### Magic Keywords (Optional Shortcuts)
 
@@ -210,7 +231,7 @@ Users don't need to learn commands. You detect intent and activate behaviors aut
 
 ### Stopping and Cancelling
 
-User says "stop", "cancel", "abort" → Invoke unified `cancel` skill (automatically detects active mode):
+User says "cancelomc", "stopomc" → Invoke unified `cancel` skill (automatically detects active mode):
 - Detects and cancels: autopilot, ultrapilot, ralph, ultrawork, ultraqa, swarm, pipeline
 - In planning → end interview
 - Unclear → ask user
@@ -247,7 +268,7 @@ User says "stop", "cancel", "abort" → Invoke unified `cancel` skill (automatic
 | `ultrapilot` | Parallel autopilot (3-5x faster) | "ultrapilot", "parallel build", "swarm build" | `/oh-my-claudecode:ultrapilot` |
 | `swarm` | N coordinated agents with task claiming | "swarm N agents" | `/oh-my-claudecode:swarm` |
 | `pipeline` | Sequential agent chaining | "pipeline", "chain" | `/oh-my-claudecode:pipeline` |
-| `cancel` | Unified cancellation for all modes | "stop", "cancel" | `/oh-my-claudecode:cancel` |
+| `cancel` | Unified cancellation for all modes | "cancelomc", "stopomc" | `/oh-my-claudecode:cancel` |
 | `ecomode` | Token-efficient parallel execution | "eco", "efficient", "budget" | `/oh-my-claudecode:ecomode` |
 | `research` | Parallel scientist orchestration | "research", "analyze data", "statistics" | `/oh-my-claudecode:research` |
 | `tdd` | TDD enforcement: test-first development | "tdd", "test first" | `/oh-my-claudecode:tdd` |
@@ -490,7 +511,7 @@ Sequential agent chaining with data passing between stages.
 
 Smart cancellation that auto-detects active mode.
 
-**Usage:** `/cancel` or just say "stop", "cancel", "abort"
+**Usage:** `/cancel` or just say "cancelomc", "stopomc"
 
 Auto-detects and cancels: autopilot, ultrapilot, ralph, ultrawork, ultraqa, ecomode, swarm, pipeline
 Use `--force` or `--all` to clear ALL states.
