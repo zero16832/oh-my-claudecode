@@ -9,7 +9,7 @@ Complete reference for oh-my-claudecode. For quick start, see the main [README.m
 - [Installation](#installation)
 - [Configuration](#configuration)
 - [Agents (32 Total)](#agents-32-total)
-- [Skills (35 Total)](#skills-35-total)
+- [Skills (37 Total)](#skills-37-total)
 - [Slash Commands](#slash-commands)
 - [Hooks System](#hooks-system)
 - [Magic Keywords](#magic-keywords)
@@ -195,7 +195,7 @@ Always use `oh-my-claudecode:` prefix when calling via Task tool.
 
 ---
 
-## Skills (35 Total)
+## Skills (37 Total)
 
 ### Core Skills
 
@@ -227,6 +227,9 @@ Always use `oh-my-claudecode:` prefix when calling via Task tool.
 | `git-master` | Git expert for atomic commits and history | (silent activation) |
 | `tdd` | TDD enforcement: test-first development | `/oh-my-claudecode:tdd` |
 | `learner` | Extract reusable skill from session | `/oh-my-claudecode:learner` |
+| `build-fix` | Fix build and TypeScript errors | `/oh-my-claudecode:build-fix` |
+| `code-review` | Comprehensive code review | `/oh-my-claudecode:code-review` |
+| `security-review` | Security vulnerability detection | `/oh-my-claudecode:security-review` |
 
 ### Utility Skills
 
@@ -241,6 +244,10 @@ Always use `oh-my-claudecode:` prefix when calling via Task tool.
 | `release` | Automated release workflow | `/oh-my-claudecode:release` |
 | `mcp-setup` | Configure MCP servers | `/oh-my-claudecode:mcp-setup` |
 | `learn-about-omc` | Usage pattern analysis | `/oh-my-claudecode:learn-about-omc` |
+| `writer-memory` | Agentic memory system for writers | `/oh-my-claudecode:writer-memory` |
+| `project-session-manager` | Manage isolated dev environments (git worktrees + tmux) | `/oh-my-claudecode:project-session-manager` |
+| `local-skills-setup` | Set up and manage local skills | `/oh-my-claudecode:local-skills-setup` |
+| `skill` | Manage local skills (list, add, remove, search, edit) | `/oh-my-claudecode:skill` |
 
 ---
 
@@ -282,7 +289,20 @@ All skills are available as slash commands with the prefix `/oh-my-claudecode:`.
 
 ## Hooks System
 
-Oh-my-claudecode includes 19 lifecycle hooks that enhance Claude Code's behavior.
+Oh-my-claudecode includes 31 lifecycle hooks that enhance Claude Code's behavior.
+
+### Execution Mode Hooks
+
+| Hook | Description |
+|------|-------------|
+| `autopilot` | Full autonomous execution from idea to working code |
+| `ultrawork` | Maximum parallel agent execution |
+| `ralph` | Persistence until verified complete |
+| `ultrapilot` | Parallel autopilot with file ownership |
+| `ultraqa` | QA cycling until goal met |
+| `swarm` | Coordinated multi-agent with SQLite task claiming |
+| `mode-registry` | Tracks active execution mode (incl. ecomode) |
+| `persistent-mode` | Maintains mode state across sessions |
 
 ### Core Hooks
 
@@ -291,18 +311,18 @@ Oh-my-claudecode includes 19 lifecycle hooks that enhance Claude Code's behavior
 | `rules-injector` | Dynamic rules injection with YAML frontmatter parsing |
 | `omc-orchestrator` | Enforces orchestrator behavior and delegation |
 | `auto-slash-command` | Automatic slash command detection and execution |
-| `keyword-detector` | Magic keyword detection (ultrawork, search, analyze) |
-| `ralph-loop` | Self-referential development loop management |
+| `keyword-detector` | Magic keyword detection (ultrawork, ralph, etc.) |
 | `todo-continuation` | Ensures todo list completion |
-| `notepad` | Compaction-resilient memory system with three-tier storage |
+| `notepad` | Compaction-resilient memory system |
+| `learner` | Skill extraction from conversations |
 
 ### Context & Recovery
 
 | Hook | Description |
 |------|-------------|
-| `context-window-limit-recovery` | Token limit error handling and recovery |
+| `recovery` | Edit error, session, and context window recovery |
 | `preemptive-compaction` | Context usage monitoring to prevent limits |
-| `session-recovery` | Session state recovery on crashes |
+| `pre-compact` | Pre-compaction processing |
 | `directory-readme-injector` | README context injection |
 
 ### Quality & Validation
@@ -312,16 +332,20 @@ Oh-my-claudecode includes 19 lifecycle hooks that enhance Claude Code's behavior
 | `comment-checker` | BDD detection and directive filtering |
 | `thinking-block-validator` | Extended thinking validation |
 | `empty-message-sanitizer` | Empty message handling |
-| `edit-error-recovery` | Automatic recovery from edit errors |
-| `post-tool-use` | Remember tag auto-capture to notepad system |
+| `permission-handler` | Permission requests and validation |
+| `think-mode` | Extended thinking detection |
 
-### Environment & Notifications
+### Coordination & Environment
 
 | Hook | Description |
 |------|-------------|
+| `subagent-tracker` | Tracks spawned sub-agents |
+| `session-end` | Session termination handling |
 | `non-interactive-env` | CI/non-interactive environment handling |
 | `agent-usage-reminder` | Reminder to use specialized agents |
 | `background-notification` | Background task completion notifications |
+| `plugin-patterns` | Plugin pattern detection |
+| `setup` | Initial setup and configuration |
 
 ---
 
@@ -468,6 +492,37 @@ Checks for:
 ```
 
 Installs or repairs the HUD statusline for real-time status updates.
+
+### HUD Configuration (settings.json)
+
+Configure HUD elements in `~/.claude/settings.json`:
+
+```json
+{
+  "omcHud": {
+    "preset": "focused",
+    "elements": {
+      "cwd": true,
+      "gitRepo": true,
+      "gitBranch": true
+    }
+  }
+}
+```
+
+| Element | Description | Default |
+|---------|-------------|---------|
+| `cwd` | Show current working directory | `false` |
+| `gitRepo` | Show git repository name | `false` |
+| `gitBranch` | Show current git branch | `false` |
+| `omcLabel` | Show [OMC] label | `true` |
+| `contextBar` | Show context window usage | `true` |
+| `agents` | Show active agents count | `true` |
+| `todos` | Show todo progress | `true` |
+| `ralph` | Show ralph loop status | `true` |
+| `autopilot` | Show autopilot status | `true` |
+
+Available presets: `minimal`, `focused`, `full`, `dense`, `analytics`, `opencode`
 
 ### Common Issues
 

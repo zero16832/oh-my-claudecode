@@ -28,7 +28,6 @@ export {
   clearRalphState,
   clearLinkedUltraworkState,
   incrementRalphIteration,
-  detectCompletionPromise,
   isUltraQAActive,
   // PRD Integration
   hasPrd,
@@ -743,6 +742,18 @@ export {
 } from './setup/index.js';
 
 export {
+  // Beads Context
+  getBeadsInstructions,
+  getBeadsContextConfig,
+  registerBeadsContext,
+  clearBeadsContext,
+  BEADS_INSTRUCTIONS,
+  BEADS_RUST_INSTRUCTIONS,
+  type TaskTool,
+  type BeadsContextConfig
+} from './beads-context/index.js';
+
+export {
   // Subagent Tracker Hook
   processSubagentStart,
   processSubagentStop,
@@ -800,31 +811,3 @@ export {
   type HookOutput as SessionEndHookOutput
 } from './session-end/index.js';
 
-export {
-  // Clear Suggestions
-  createClearSuggestionHook,
-  checkClearSuggestion,
-  markPlanningComplete,
-  resetClearSuggestionState,
-  getClearSuggestionStats,
-  cleanupStaleSessions,
-  discoverPreservedArtifacts,
-  isToolFailure,
-  checkModeJustCompleted,
-  checkArchitectJustVerified,
-  detectWorkflowComplete,
-  detectArchitectVerified,
-  detectPlanningComplete,
-  detectContextWithArtifacts,
-  detectDegradationSignals,
-  CLEAR_SUGGESTION_COOLDOWN_MS,
-  MAX_CLEAR_SUGGESTIONS,
-  CONTEXT_THRESHOLD as CLEAR_CONTEXT_THRESHOLD,
-  FAILURE_THRESHOLD as CLEAR_FAILURE_THRESHOLD,
-  type ClearSuggestionTrigger,
-  type ClearSuggestionState,
-  type ClearSuggestionConfig,
-  type ClearSuggestionResult,
-  type ClearSuggestionInput,
-  type PreservedArtifact
-} from './clear-suggestions/index.js';

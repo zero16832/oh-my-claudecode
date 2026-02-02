@@ -13,13 +13,12 @@
  * ```
  */
 
-import { detectKeywordsWithType, removeCodeBlocks } from './keyword-detector/index.js';
-import { readRalphState, incrementRalphIteration, clearRalphState, detectCompletionPromise, createRalphLoopHook } from './ralph/index.js';
+import { detectKeywordsWithType, removeCodeBlocks, getPrimaryKeyword, getAllKeywords } from './keyword-detector/index.js';
+import { readRalphState, incrementRalphIteration, clearRalphState, createRalphLoopHook } from './ralph/index.js';
 import { processOrchestratorPreTool } from './omc-orchestrator/index.js';
 import { addBackgroundTask, completeBackgroundTask } from '../hud/background-tasks.js';
 import {
   readVerificationState,
-  startVerification,
   getArchitectVerificationPrompt,
   clearVerificationState
 } from './ralph/index.js';
@@ -65,6 +64,16 @@ import {
   handleSessionEnd,
   type SessionEndInput
 } from './session-end/index.js';
+
+/**
+ * Validates that an input object contains all required fields.
+ * Returns true if all required fields are present, false otherwise.
+ */
+function validateHookInput<T>(input: unknown, requiredFields: string[]): input is T {
+  if (typeof input !== 'object' || input === null) return false;
+  const obj = input as Record<string, unknown>;
+  return requiredFields.every(field => field in obj && obj[field] !== undefined);
+}
 
 /**
  * Input format from Claude Code hooks (via stdin)
@@ -148,8 +157,8 @@ function getPromptText(input: HookInput): string {
 
 /**
  * Process keyword detection hook
- * Detects ultrawork/ultrathink/search/analyze keywords and returns injection message
- * Also activates persistent ultrawork state when ultrawork keyword is detected
+ * Detects magic keywords and returns injection message
+ * Also activates persistent state for modes that require it (ralph, ultrawork)
  */
 function processKeywordDetector(input: HookInput): HookOutput {
   const promptText = getPromptText(input);
@@ -160,105 +169,85 @@ function processKeywordDetector(input: HookInput): HookOutput {
   // Remove code blocks to prevent false positives
   const cleanedText = removeCodeBlocks(promptText);
 
-  // Detect keywords
-  const keywords = detectKeywordsWithType(cleanedText);
+  // Get all keywords (supports multiple keywords in one prompt)
+  const keywords = getAllKeywords(cleanedText);
 
   if (keywords.length === 0) {
     return { continue: true };
   }
 
-  // Priority: ralph > ultrawork > ultrathink > deepsearch > analyze
-  const hasRalph = keywords.some(k => k.type === 'ralph');
-  const hasUltrawork = keywords.some(k => k.type === 'ultrawork');
-  const hasUltrathink = keywords.some(k => k.type === 'ultrathink');
-  const hasDeepsearch = keywords.some(k => k.type === 'deepsearch');
-  const hasAnalyze = keywords.some(k => k.type === 'analyze');
+  const sessionId = input.sessionId;
+  const directory = input.directory || process.cwd();
+  const messages: string[] = [];
 
-  if (hasRalph) {
-    // Activate ralph state which also auto-activates ultrawork
-    const sessionId = input.sessionId;
-    const directory = input.directory || process.cwd();
-    const hook = createRalphLoopHook(directory);
-    hook.startLoop(sessionId || 'cli-session', promptText);
+  // Process each keyword and collect messages
+  for (const keywordType of keywords) {
+    switch (keywordType) {
+      case 'ralph': {
+        // Activate ralph state which also auto-activates ultrawork
+        const hook = createRalphLoopHook(directory);
+        hook.startLoop(sessionId || 'cli-session', promptText);
+        messages.push(RALPH_MESSAGE);
+        break;
+      }
 
-    return {
-      continue: true,
-      message: RALPH_MESSAGE
-    };
+      case 'ultrawork':
+        // Activate persistent ultrawork state
+        activateUltrawork(promptText, sessionId, directory);
+        messages.push(ULTRAWORK_MESSAGE);
+        break;
+
+      case 'ultrathink':
+        messages.push(ULTRATHINK_MESSAGE);
+        break;
+
+      case 'deepsearch':
+        messages.push(SEARCH_MESSAGE);
+        break;
+
+      case 'analyze':
+        messages.push(ANALYZE_MESSAGE);
+        break;
+
+      // For modes without dedicated message constants, return generic activation message
+      // These are handled by UserPromptSubmit hook for skill invocation
+      case 'cancel':
+      case 'autopilot':
+      case 'ultrapilot':
+      case 'ecomode':
+      case 'swarm':
+      case 'pipeline':
+      case 'ralplan':
+      case 'plan':
+      case 'tdd':
+      case 'research':
+        messages.push(`[MODE: ${keywordType.toUpperCase()}] Skill invocation handled by UserPromptSubmit hook.`);
+        break;
+
+      default:
+        // Skip unknown keywords
+        break;
+    }
   }
 
-  if (hasUltrawork) {
-    // Activate persistent ultrawork state
-    const sessionId = input.sessionId;
-    const directory = input.directory || process.cwd();
-    activateUltrawork(promptText, sessionId, directory);
-
-    return {
-      continue: true,
-      message: ULTRAWORK_MESSAGE
-    };
+  // Return combined message with delimiter
+  if (messages.length === 0) {
+    return { continue: true };
   }
 
-  if (hasUltrathink) {
-    return {
-      continue: true,
-      message: ULTRATHINK_MESSAGE
-    };
-  }
-
-  if (hasDeepsearch) {
-    return {
-      continue: true,
-      message: SEARCH_MESSAGE
-    };
-  }
-
-  if (hasAnalyze) {
-    return {
-      continue: true,
-      message: ANALYZE_MESSAGE
-    };
-  }
-
-  return { continue: true };
+  return {
+    continue: true,
+    message: messages.join('\n\n---\n\n')
+  };
 }
 
 /**
  * Process stop continuation hook
- * Checks for incomplete todos and blocks stop if tasks remain
+ * NOTE: Simplified to always return continue: true (soft enforcement only).
+ * All continuation enforcement is now done via message injection, not blocking.
  */
-async function processStopContinuation(input: HookInput): Promise<HookOutput> {
-  const sessionId = input.sessionId;
-  const directory = input.directory || process.cwd();
-
-  // Extract stop context for abort detection (supports both camelCase and snake_case)
-  const stopContext: StopContext = {
-    stop_reason: (input as Record<string, unknown>).stop_reason as string | undefined,
-    stopReason: (input as Record<string, unknown>).stopReason as string | undefined,
-    user_requested: (input as Record<string, unknown>).user_requested as boolean | undefined,
-    userRequested: (input as Record<string, unknown>).userRequested as boolean | undefined,
-  };
-
-  // Never block context-limit stops (causes deadlock - issue #213)
-  if (isContextLimitStop(stopContext)) {
-    return { continue: true };
-  }
-
-  // Respect user abort
-  if (isUserAbort(stopContext)) {
-    return { continue: true };
-  }
-
-  // Check for incomplete todos
-  const incompleteTodos = await checkIncompleteTodos(sessionId, directory, stopContext);
-
-  if (incompleteTodos.count > 0) {
-    return {
-      continue: false,
-      reason: `${TODO_CONTINUATION_PROMPT}\n\n[Status: ${incompleteTodos.count} tasks remaining]`
-    };
-  }
-
+async function processStopContinuation(_input: HookInput): Promise<HookOutput> {
+  // Always allow stop - no hard blocking
   return { continue: true };
 }
 
@@ -281,8 +270,8 @@ async function processRalph(input: HookInput): Promise<HookOutput> {
     return { continue: true };
   }
 
-  // Check if this is the right session
-  if (state.session_id && state.session_id !== sessionId) {
+  // Strict session isolation: only process state for matching session
+  if (state.session_id !== sessionId) {
     return { continue: true };
   }
 
@@ -297,30 +286,6 @@ async function processRalph(input: HookInput): Promise<HookOutput> {
     return {
       continue: true,
       message: verificationPrompt
-    };
-  }
-
-  // Check for completion promise in transcript
-  const completed = detectCompletionPromise(sessionId, state.completion_promise);
-
-  if (completed) {
-    // Start architect verification instead of completing immediately
-    startVerification(directory, state.completion_promise, state.prompt);
-    const newVerificationState = readVerificationState(directory);
-
-    if (newVerificationState) {
-      const verificationPrompt = getArchitectVerificationPrompt(newVerificationState);
-      return {
-        continue: true,
-        message: verificationPrompt
-      };
-    }
-
-    // Fallback if verification couldn't be started
-    clearRalphState(directory);
-    return {
-      continue: true,
-      message: `[RALPH LOOP COMPLETE] Task completed after ${state.iteration} iteration(s).`
     };
   }
 
@@ -342,12 +307,12 @@ async function processRalph(input: HookInput): Promise<HookOutput> {
 
   const continuationPrompt = `[RALPH LOOP - ITERATION ${newState.iteration}/${newState.max_iterations}]
 
-Your previous attempt did not output the completion promise. Continue working on the task.
+The task is NOT complete yet. Continue working.
 
 IMPORTANT:
 - Review your progress so far
 - Continue from where you left off
-- When FULLY complete, output: <promise>${newState.completion_promise}</promise>
+- When FULLY complete (after Architect verification), run \`/oh-my-claudecode:cancel\` to cleanly exit and clean up state files. If cancel fails, retry with \`/oh-my-claudecode:cancel --force\`.
 - Do not stop until the task is truly done
 
 Original task:
@@ -389,9 +354,9 @@ async function processSessionStart(input: HookInput): Promise<HookOutput> {
 
   const messages: string[] = [];
 
-  // Check for active autopilot state
+  // Check for active autopilot state - only restore if it belongs to this session
   const autopilotState = readAutopilotState(directory);
-  if (autopilotState?.active) {
+  if (autopilotState?.active && autopilotState.session_id === sessionId) {
     messages.push(`<session-restore>
 
 [AUTOPILOT MODE RESTORED]
@@ -409,9 +374,9 @@ Continue autopilot execution until complete.
 `);
   }
 
-  // Check for active ultrawork state
+  // Check for active ultrawork state - only restore if it belongs to this session
   const ultraworkState = readUltraworkState(directory);
-  if (ultraworkState?.active) {
+  if (ultraworkState?.active && ultraworkState.session_id === sessionId) {
     messages.push(`<session-restore>
 
 [ULTRAWORK MODE RESTORED]
@@ -479,6 +444,24 @@ function processPreToolUse(input: HookInput): HookOutput {
     };
   }
 
+  // Warn about pkill -f self-termination risk (issue #210)
+  // Matches: pkill -f, pkill -9 -f, pkill --full, etc.
+  if (input.toolName === 'Bash') {
+    const command = (input.toolInput as { command?: string })?.command ?? '';
+    if (/\bpkill\b.*\s-f\b/.test(command) || /\bpkill\b.*--full\b/.test(command)) {
+      return {
+        continue: true,
+        message: [
+          'WARNING: `pkill -f` matches its own process command line and will self-terminate the shell (exit code 144 = SIGTERM).',
+          'Safer alternatives:',
+          '  - `pkill <exact-process-name>` (without -f)',
+          '  - `kill $(pgrep -f "pattern")` (pgrep does not kill itself)',
+          'Proceeding anyway, but the command may kill this shell session.',
+        ].join('\n'),
+      };
+    }
+  }
+
   // Track Task tool invocations for HUD background tasks display
   if (input.toolName === 'Task') {
     const toolInput = input.toolInput as {
@@ -506,22 +489,10 @@ function processPreToolUse(input: HookInput): HookOutput {
 
 /**
  * Process post-tool-use hook
- * Marks background tasks as completed
  */
-function processPostToolUse(input: HookInput): HookOutput {
-  const directory = input.directory || process.cwd();
-
-  // Track Task tool completion for HUD
-  if (input.toolName === 'Task') {
-    const toolInput = input.toolInput as {
-      description?: string;
-    } | undefined;
-
-    // We don't have the exact task ID, but the HUD state cleanup handles this
-    // For now, this is a placeholder - proper tracking would need tool_use_id
-    // which isn't reliably available in all hook scenarios
-  }
-
+function processPostToolUse(_input: HookInput): HookOutput {
+  // Post-tool-use hook - currently no action needed
+  // Task completion tracking would require tool_use_id which isn't reliably available
   return { continue: true };
 }
 
@@ -558,6 +529,24 @@ function processAutopilot(input: HookInput): HookOutput {
 }
 
 /**
+ * Cached parsed OMC_SKIP_HOOKS for performance (env vars don't change during process lifetime)
+ */
+let _cachedSkipHooks: string[] | null = null;
+function getSkipHooks(): string[] {
+  if (_cachedSkipHooks === null) {
+    _cachedSkipHooks = process.env.OMC_SKIP_HOOKS?.split(',').map(s => s.trim()).filter(Boolean) ?? [];
+  }
+  return _cachedSkipHooks;
+}
+
+/**
+ * Reset the skip hooks cache (for testing only)
+ */
+export function resetSkipHooksCache(): void {
+  _cachedSkipHooks = null;
+}
+
+/**
  * Main hook processor
  * Routes to specific hook handler based on type
  */
@@ -565,6 +554,15 @@ export async function processHook(
   hookType: HookType,
   input: HookInput
 ): Promise<HookOutput> {
+  // Environment kill-switches for plugin coexistence
+  if (process.env.DISABLE_OMC === '1' || process.env.DISABLE_OMC === 'true') {
+    return { continue: true };
+  }
+  const skipHooks = getSkipHooks();
+  if (skipHooks.includes(hookType)) {
+    return { continue: true };
+  }
+
   try {
     switch (hookType) {
       case 'keyword-detector':
@@ -592,34 +590,58 @@ export async function processHook(
         return processAutopilot(input);
 
       // New async hook types
-      case 'session-end':
-        return await handleSessionEnd(input as unknown as SessionEndInput);
+      case 'session-end': {
+        if (!validateHookInput<SessionEndInput>(input, ['session_id', 'cwd'])) {
+          console.error('[hook-bridge] Invalid SessionEndInput - missing required fields');
+          return { continue: true };
+        }
+        return await handleSessionEnd(input as SessionEndInput);
+      }
 
-      case 'subagent-start':
-        return processSubagentStart(input as unknown as SubagentStartInput);
+      case 'subagent-start': {
+        if (!validateHookInput<SubagentStartInput>(input, ['session_id', 'cwd'])) {
+          console.error('[hook-bridge] Invalid SubagentStartInput - missing required fields');
+          return { continue: true };
+        }
+        return processSubagentStart(input as SubagentStartInput);
+      }
 
-      case 'subagent-stop':
-        return processSubagentStop(input as unknown as SubagentStopInput);
+      case 'subagent-stop': {
+        if (!validateHookInput<SubagentStopInput>(input, ['session_id', 'cwd'])) {
+          console.error('[hook-bridge] Invalid SubagentStopInput - missing required fields');
+          return { continue: true };
+        }
+        return processSubagentStop(input as SubagentStopInput);
+      }
 
-      case 'pre-compact':
-        return await processPreCompact(input as unknown as PreCompactInput);
+      case 'pre-compact': {
+        if (!validateHookInput<PreCompactInput>(input, ['session_id', 'cwd'])) {
+          console.error('[hook-bridge] Invalid PreCompactInput - missing required fields');
+          return { continue: true };
+        }
+        return await processPreCompact(input as PreCompactInput);
+      }
 
       case 'setup-init':
+      case 'setup-maintenance': {
+        if (!validateHookInput<SetupInput>(input, ['session_id', 'cwd'])) {
+          console.error('[hook-bridge] Invalid SetupInput - missing required fields');
+          return { continue: true };
+        }
         return await processSetup({
-          ...input,
-          trigger: 'init',
+          ...(input as SetupInput),
+          trigger: hookType === 'setup-init' ? 'init' : 'maintenance',
           hook_event_name: 'Setup'
-        } as unknown as SetupInput);
+        });
+      }
 
-      case 'setup-maintenance':
-        return await processSetup({
-          ...input,
-          trigger: 'maintenance',
-          hook_event_name: 'Setup'
-        } as unknown as SetupInput);
-
-      case 'permission-request':
-        return await handlePermissionRequest(input as unknown as PermissionRequestInput);
+      case 'permission-request': {
+        if (!validateHookInput<PermissionRequestInput>(input, ['session_id', 'cwd', 'tool_name'])) {
+          console.error('[hook-bridge] Invalid PermissionRequestInput - missing required fields');
+          return { continue: true };
+        }
+        return await handlePermissionRequest(input as PermissionRequestInput);
+      }
 
       default:
         return { continue: true };

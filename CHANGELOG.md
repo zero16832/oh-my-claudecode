@@ -5,6 +5,135 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.9.1] - 2026-02-01
+
+### Changed
+
+- **Framework-Agnostic Prompts** - All agent prompts, skill files, and TypeScript source code now use generic, language-neutral commands instead of hardcoded npm/Node.js-specific commands. This makes OMC work seamlessly with any project type (Python, Go, Rust, Java, etc.).
+
+### Files Updated
+
+**Agent Prompts:**
+- `agents/deep-executor.md` - Generic verification evidence placeholders
+- `agents/architect.md` - Generic project manifest and build references
+
+**Skill Files:**
+- `skills/build-fix/SKILL.md` - Generic type check and build command references
+- `skills/ultrawork/SKILL.md` - Generic background task examples
+- `skills/ralph/SKILL.md` - Generic background task examples
+- `skills/ultraqa/SKILL.md` - Generic goal command references
+- `skills/tdd/SKILL.md` - Generic test command references
+- `skills/ultrapilot/SKILL.md` - Generic validation commands
+- `skills/deepinit/SKILL.md` - Generic dependency and test instructions
+
+**Command Files:**
+- `commands/build-fix.md` - Generic type check command
+- `commands/ralph.md` - Generic background task examples
+- `commands/ultrawork.md` - Generic background task examples
+- `commands/ultraqa.md` - Generic goal commands
+
+**TypeScript Source:**
+- `src/hooks/ultraqa/index.ts` - `getGoalCommand()` returns generic comments with examples
+- `src/features/verification/index.ts` - Removed hardcoded npm commands from STANDARD_CHECKS
+- `src/hooks/autopilot/state.ts` - Generic QA phase instructions
+- `src/agents/definitions.ts` - Generic test command reference
+- `src/features/background-tasks.ts` - Generic background task documentation
+- `src/features/task-decomposer/index.ts` - Generic verification commands
+
+---
+
+## [3.8.17] - 2026-02-01
+
+### Fixed
+
+- **MCP Tool Name Length** (PR #252, fixes #241, #232, #235) - Shortened MCP server name from `omc-tools` to `t` to fix tool names exceeding the 64-character API limit. The longest tool name (`lsp_diagnostics_directory`) now uses 57 characters instead of 65.
+
+---
+
+## [3.8.16] - 2026-02-01
+
+### Changed
+
+- **Local-Only State Management** - All execution mode state (ralph, ultrawork, ecomode) is now stored exclusively in `.omc/state/` per project/worktree. Global state in `~/.claude/` and `~/.omc/state/` is no longer written for mode state, enabling multiple git worktrees to run OMC simultaneously without state conflicts. Existing global state is migrated on first read.
+- **Promise Pattern Removal** - Fully removed `<promise>` completion pattern from ralph and verification workflows. Completion now uses architect verification + `/oh-my-claudecode:cancel` for clean exit.
+
+### Added
+
+- **HUD CWD Element** (#229) - Configurable working directory display in HUD with three formats: relative, absolute, folder.
+- **HUD Thinking Indicator** (#229) - Configurable thinking indicator with four formats: bubble, brain, face, text.
+- **HUD Line Limiting** (#228) - Prevents HUD output from shrinking the input field.
+- **HUD Stale Task Threshold** (#236) - Configurable `staleTaskThresholdMinutes` option.
+- **Session End Hook** - New hook for proper state cleanup on session termination, preventing stale state from causing stop hook malfunctions.
+- **Learner Parser Backward Compatibility** (#227) - Backward-compatible parser for legacy skill files with auto-generated IDs and default source field.
+
+### Fixed
+
+- **Stop Hook Not Blocking** (PR #237, fixes #233) - Fixed persistent-mode Stop hook using `{ continue: true }` instead of `{ decision: "block" }`.
+- **Completion Promise Checking** (#239) - Added completion promise checking to Ultrawork and Ecomode stop hooks.
+- **Staleness Check** - Added staleness check and session-end cleanup for mode states.
+
+---
+
+## [3.8.15] - 2026-01-31
+
+### Fixed
+
+- **Stop Hook Not Blocking** (PR #237, fixes #233) - Fixed persistent-mode Stop hook using `{ continue: true }` instead of `{ decision: "block" }`. The old approach was a no-op that always allowed stops instead of blocking them. All 8 mode handlers (ralph, autopilot, ultrapilot, swarm, pipeline, ultraqa, ultrawork, ecomode) now properly block premature stops.
+
+---
+
+## [3.8.14] - 2026-01-30
+
+### Added
+
+- **Bun Package Manager Support** (PR #219) - OMC setup now prefers Bun over npm when available, with automatic fallback. Includes duplicate cleanup logic and per-manager verification.
+- **MCP Skill Loading Tools** (PR #225) - Three new MCP tools (`load_omc_skills_local`, `load_omc_skills_global`, `list_omc_skills`) with 5-layer security hardening: path validation, symlink boundary checks, depth limits, content sanitization, and relative path output.
+
+### Fixed
+
+- **HUD OAuth Token Refresh** (PR #206) - Expired OAuth tokens now auto-refresh using RFC 6749 compliant refresh token grant, restoring rate limit display. Credentials persisted with atomic writes and 0o600 permissions.
+
+---
+
+## [3.8.10] - 2026-01-30
+
+### Deprecated
+
+- **Coordinator Agent** - `coordinatorAgent` and `ORCHESTRATOR_SISYPHUS_PROMPT_METADATA` are deprecated and will be removed in v4.0.0. The coordinator agent was never registered in the runtime agent registry and had zero internal consumers. Deprecated stubs are provided for backward compatibility.
+
+### Fixed
+
+- **Documentation Consistency** - Fixed misleading "Combine them" multi-skill documentation
+  - Clarified that ralph includes ultrawork automatically
+  - Updated 7 documentation files with accurate skill composition guidance
+- **Skill Count** - Fixed documented skill count from 35 to 37 across all documentation
+- **Missing Agent Exports** - Fixed 9 missing agent exports from index.ts:
+  - `explore-high`, `security-reviewer`, `security-reviewer-low`
+  - `build-fixer`, `build-fixer-low`
+  - `tdd-guide`, `tdd-guide-low`
+  - `code-reviewer`, `code-reviewer-low`
+
+### Changed
+
+- **Agent Prompt Architecture** - Migrated all 12 base agent prompts from hardcoded TypeScript constants to dynamic loading from markdown files
+  - Implemented `loadAgentPrompt()` utility function for runtime prompt loading
+  - Moved utility to `src/agents/utils.ts` to avoid circular dependency issues
+  - Affected agents: planner, architect, executor, explore, researcher, designer, writer, qa-tester, vision, critic, analyst, scientist
+- **Agent Prompt Enhancement** - Enhanced agent prompts with improved instructions and domain-specific guidance. Prompts are now maintained as standalone markdown files in `agents/`.
+- **Public API** - `loadAgentPrompt()` is now exported from the main entry point for external consumers
+- **Model Routing** - Removed dead coordinator references and `isFixedTierAgent()` function (was only used for deprecated coordinator)
+- **Task Decomposer** - Renamed `requiresCoordinator` to `requiresOrchestration` in SharedFile type
+- **Documentation Enhancement** - Added "Choosing the Right Mode" decision tree to clarify execution mode selection
+- **State Management** - Standardized path documentation for state files across all modes
+
+### Added
+
+- **CI Validation Tests** - New comprehensive validation tests for agent registry
+  - Validates agent count, markdown file presence, exports, and absence of hardcoded prompts
+  - Prevents regressions in agent configuration
+
+---
+
 ## [3.7.10] - 2026-01-28
 
 ### Fixed
@@ -458,7 +587,7 @@ All skill files now include explicit "STATE CLEANUP ON COMPLETION" sections inst
 - feat(skills): add learn-about-omc skill for usage pattern analysis
 
 ### Changed
-- feat(skills): consolidate 42 skills to 35 (removed deprecated cancel-* skills)
+- feat(skills): consolidate 42 skills to 37 (removed deprecated cancel-* skills, added build-fix, code-review, security-review, writer-memory, project-session-manager, local-skills-setup, skill)
 
 ### Fixed
 - fix(tests): skip unimplemented delegation-enforcer tests

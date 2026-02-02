@@ -167,23 +167,50 @@ export function hasKeyword(text: string): boolean {
 }
 
 /**
- * Get the highest priority keyword detected
+ * Get all detected keywords with conflict resolution applied
  */
-export function getPrimaryKeyword(text: string): DetectedKeyword | null {
+export function getAllKeywords(text: string): KeywordType[] {
   const cleanText = removeCodeBlocks(text);
   const detected = detectKeywordsWithType(cleanText);
 
-  if (detected.length === 0) {
+  if (detected.length === 0) return [];
+
+  let types = [...new Set(detected.map(d => d.type))];
+
+  // Exclusive: cancel suppresses everything
+  if (types.includes('cancel')) return ['cancel'];
+
+  // Mutual exclusion: ecomode beats ultrawork
+  if (types.includes('ecomode') && types.includes('ultrawork')) {
+    types = types.filter(t => t !== 'ultrawork');
+  }
+
+  // Mutual exclusion: ultrapilot beats autopilot
+  if (types.includes('ultrapilot') && types.includes('autopilot')) {
+    types = types.filter(t => t !== 'autopilot');
+  }
+
+  // Sort by priority order
+  return KEYWORD_PRIORITY.filter(k => types.includes(k));
+}
+
+/**
+ * Get the highest priority keyword detected with conflict resolution
+ */
+export function getPrimaryKeyword(text: string): DetectedKeyword | null {
+  const allKeywords = getAllKeywords(text);
+
+  if (allKeywords.length === 0) {
     return null;
   }
 
-  // Return highest priority (first in KEYWORD_PRIORITY order)
-  for (const type of KEYWORD_PRIORITY) {
-    const match = detected.find(d => d.type === type);
-    if (match) {
-      return match;
-    }
-  }
+  // Get the highest priority keyword type
+  const primaryType = allKeywords[0];
 
-  return detected[0];
+  // Find the original detected keyword for this type
+  const cleanText = removeCodeBlocks(text);
+  const detected = detectKeywordsWithType(cleanText);
+  const match = detected.find(d => d.type === primaryType);
+
+  return match || null;
 }
