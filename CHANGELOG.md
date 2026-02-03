@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.9.7] - 2026-02-02
+
+### Fixed
+
+- **Stop Hook Freeze on Bash Errors** (#321, fixes #319) - Fixed persistent-mode hook causing session freezes when bash commands encounter errors. The root cause was cascading errors in the catch block when stdout/stderr streams were broken:
+  - Replaced `console.log`/`console.error` with `process.stdout.write`/`process.stderr.write` in error handlers
+  - Added nested try-catch blocks to handle EPIPE and broken pipe errors gracefully
+  - Added global `uncaughtException` and `unhandledRejection` handlers to prevent hook hangs
+  - Added 10-second safety timeout to force exit if hook doesn't complete
+  - Added early return for invalid JSON input to prevent unnecessary processing
+  - Hook now guarantees to return `{ continue: true }` even on catastrophic errors
+
+- **Invalid Hook Event Type** (#322, fixes #320) - Renamed invalid 'Setup' hook event to 'SessionStart' in hooks.json. The 'Setup' event type is not recognized by Claude Code's hook system. All hooks moved into SessionStart where they belong.
+
+- **Project-Scoped Plugin Isolation** (#315, fixes #314) - Fixed project-scoped plugin installations incorrectly modifying global scope. When installing OMC as a project-scoped plugin (in `.claude/plugins/`), the installer was incorrectly modifying global `~/.claude/settings.json` and `~/.claude/hud/`, causing the statusline and plugin to appear in all projects:
+  - Added `isProjectScopedPlugin()` detection function
+  - Skip HUD statusline installation for project-scoped plugins
+  - Skip settings.json modification for project-scoped plugins
+  - Skip version metadata file for project-scoped plugins
+  - Skip global config directory creation for project-scoped plugins
+  - Added comprehensive tests for project-scoped detection
+
+- **Auto-Update Trigger on Session Start** (#316, fixes #298) - Fixed silent auto-update feature not being triggered. The `silentAutoUpdate()` function existed but was never called. Now properly imports and calls `initSilentAutoUpdate()` in `processSessionStart()` so update checks run on session start when the user has opted in.
+
+- **Session Isolation + Windows Path Handling** (#317) - Fixed session isolation and Windows path compatibility issues. Improved session ID handling across 14 files to prevent state conflicts between concurrent sessions, with proper Windows path normalization (contributed by @MeroZemory).
+
+---
+
 ## [3.9.2] - 2026-02-01
 
 ### Added
@@ -1688,3 +1716,17 @@ Task(subagent_type="oracle", model="opus", prompt="Force Opus for this task")
 [1.9.0]: https://github.com/Yeachan-Heo/oh-my-claude-sisyphus/compare/v1.8.0...v1.9.0
 [1.8.0]: https://github.com/Yeachan-Heo/oh-my-claude-sisyphus/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/Yeachan-Heo/oh-my-claude-sisyphus/releases/tag/v1.7.0
+
+## [3.9.8] - 2026-02-03
+
+### Bug Fixes
+- fix: auto-recover status bar after plugin update (#327, #329)
+  - Filter plugin cache versions to only those with built dist/hud/index.js
+  - Prevents picking unbuilt new version after plugin update
+
+### Features
+- feat: add project isolation to state files (#326, #328)
+  - Added project_path validation to all persistent mode states
+  - Prevents cross-project state contamination
+  - Windows path normalization support
+  - Backward compatible with legacy states

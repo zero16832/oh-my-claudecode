@@ -11,13 +11,13 @@
 import { existsSync, readFileSync, writeFileSync, readdirSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { homedir } from 'os';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Dynamic import for the shared stdin module
-const { readStdin } = await import(join(__dirname, 'lib', 'stdin.mjs'));
+const { readStdin } = await import(pathToFileURL(join(__dirname, 'lib', 'stdin.mjs')).href);
 
 function readJsonFile(path) {
   try {
@@ -31,8 +31,8 @@ function readJsonFile(path) {
 function writeJsonFile(path, data) {
   try {
     // Ensure directory exists
-    const dir = path.substring(0, path.lastIndexOf('/'));
-    if (dir && !existsSync(dir)) {
+    const dir = dirname(path);
+    if (dir && dir !== '.' && !existsSync(dir)) {
       mkdirSync(dir, { recursive: true });
     }
     writeFileSync(path, JSON.stringify(data, null, 2));
@@ -65,6 +65,33 @@ function isStaleState(state) {
 
   const age = Date.now() - mostRecent;
   return age > STALE_STATE_THRESHOLD_MS;
+}
+
+/**
+ * Normalize a path for comparison (handle trailing slashes, case sensitivity on Windows)
+ */
+function normalizePath(p) {
+  if (!p) return '';
+  // Remove trailing slashes
+  let normalized = p.replace(/\/+$/, '').replace(/\\+$/, '');
+  // On Windows, normalize to lowercase for case-insensitive comparison
+  if (process.platform === 'win32') {
+    normalized = normalized.toLowerCase();
+  }
+  return normalized;
+}
+
+/**
+ * Check if a state belongs to the current project.
+ * States without project_path (legacy) are accepted for backward compatibility.
+ */
+function isStateForCurrentProject(state, currentDirectory) {
+  // No project_path in state = legacy state, accept for backward compatibility
+  if (!state || !state.project_path) {
+    return true;
+  }
+  // Compare normalized paths
+  return normalizePath(state.project_path) === normalizePath(currentDirectory);
 }
 
 /**
@@ -190,7 +217,11 @@ async function main() {
   try {
     const input = await readStdin();
     let data = {};
-    try { data = JSON.parse(input); } catch {}
+    try { data = JSON.parse(input); } catch {
+      // Invalid JSON - allow stop to prevent hanging
+      process.stdout.write(JSON.stringify({ continue: true }) + '\n');
+      return;
+    }
 
     const directory = data.directory || process.cwd();
     const sessionId = data.sessionId || data.session_id || '';
@@ -231,7 +262,7 @@ async function main() {
 
     // Priority 1: Ralph Loop (explicit persistence mode)
     // Skip if state is stale (older than 2 hours) - prevents blocking new sessions
-    if (ralph.state?.active && !isStaleState(ralph.state)) {
+    if (ralph.state?.active && !isStaleState(ralph.state) && isStateForCurrentProject(ralph.state, directory)) {
       const iteration = ralph.state.iteration || 1;
       const maxIter = ralph.state.max_iterations || 100;
 
@@ -249,7 +280,7 @@ async function main() {
     }
 
     // Priority 2: Autopilot (high-level orchestration)
-    if (autopilot.state?.active && !isStaleState(autopilot.state)) {
+    if (autopilot.state?.active && !isStaleState(autopilot.state) && isStateForCurrentProject(autopilot.state, directory)) {
       const phase = autopilot.state.phase || 'unknown';
       if (phase !== 'complete') {
         const newCount = (autopilot.state.reinforcement_count || 0) + 1;
@@ -268,7 +299,7 @@ async function main() {
     }
 
     // Priority 3: Ultrapilot (parallel autopilot)
-    if (ultrapilot.state?.active && !isStaleState(ultrapilot.state)) {
+    if (ultrapilot.state?.active && !isStaleState(ultrapilot.state) && isStateForCurrentProject(ultrapilot.state, directory)) {
       const workers = ultrapilot.state.workers || [];
       const incomplete = workers.filter(w => w.status !== 'complete' && w.status !== 'failed').length;
       if (incomplete > 0) {
@@ -288,7 +319,7 @@ async function main() {
     }
 
     // Priority 4: Swarm (coordinated agents with SQLite)
-    if (swarmMarker && swarmSummary?.active && !isStaleState(swarmSummary)) {
+    if (swarmMarker && swarmSummary?.active && !isStaleState(swarmSummary) && isStateForCurrentProject(swarmSummary, directory)) {
       const pending = (swarmSummary.tasks_pending || 0) + (swarmSummary.tasks_claimed || 0);
       if (pending > 0) {
         const newCount = (swarmSummary.reinforcement_count || 0) + 1;
@@ -307,7 +338,7 @@ async function main() {
     }
 
     // Priority 5: Pipeline (sequential stages)
-    if (pipeline.state?.active && !isStaleState(pipeline.state)) {
+    if (pipeline.state?.active && !isStaleState(pipeline.state) && isStateForCurrentProject(pipeline.state, directory)) {
       const currentStage = pipeline.state.current_stage || 0;
       const totalStages = pipeline.state.stages?.length || 0;
       if (currentStage < totalStages) {
@@ -327,7 +358,7 @@ async function main() {
     }
 
     // Priority 6: UltraQA (QA cycling)
-    if (ultraqa.state?.active && !isStaleState(ultraqa.state)) {
+    if (ultraqa.state?.active && !isStaleState(ultraqa.state) && isStateForCurrentProject(ultraqa.state, directory)) {
       const cycle = ultraqa.state.cycle || 1;
       const maxCycles = ultraqa.state.max_cycles || 10;
       if (cycle < maxCycles && !ultraqa.state.all_passing) {
@@ -348,7 +379,8 @@ async function main() {
     // Session isolation: only block if state belongs to this session (issue #311)
     // If state has session_id, it must match. If no session_id (legacy), allow.
     if (ultrawork.state?.active && !isStaleState(ultrawork.state) &&
-        (!ultrawork.state.session_id || ultrawork.state.session_id === sessionId)) {
+        (!ultrawork.state.session_id || ultrawork.state.session_id === sessionId) &&
+        isStateForCurrentProject(ultrawork.state, directory)) {
       const newCount = (ultrawork.state.reinforcement_count || 0) + 1;
       const maxReinforcements = ultrawork.state.max_reinforcements || 50;
 
@@ -384,7 +416,7 @@ async function main() {
     }
 
     // Priority 8: Ecomode - ALWAYS continue while active
-    if (ecomode.state?.active && !isStaleState(ecomode.state)) {
+    if (ecomode.state?.active && !isStaleState(ecomode.state) && isStateForCurrentProject(ecomode.state, directory)) {
       const newCount = (ecomode.state.reinforcement_count || 0) + 1;
       const maxReinforcements = ecomode.state.max_reinforcements || 50;
 
@@ -419,9 +451,69 @@ async function main() {
     console.log(JSON.stringify({ continue: true }));
   } catch (error) {
     // On any error, allow stop rather than blocking forever
-    console.error(`[persistent-mode] Error: ${error.message}`);
-    console.log(JSON.stringify({ continue: true }));
+    // CRITICAL: Use process.stdout.write instead of console.log to avoid
+    // cascading errors if stdout/stderr are broken (issue #319)
+    // Wrap in try-catch to handle EPIPE and other stream errors gracefully
+    try {
+      process.stderr.write(`[persistent-mode] Error: ${error?.message || error}\n`);
+    } catch {
+      // Ignore stderr errors - we just need to return valid JSON
+    }
+    try {
+      process.stdout.write(JSON.stringify({ continue: true }) + '\n');
+    } catch {
+      // If stdout write fails, the hook will timeout and Claude Code will proceed
+      // This is better than hanging forever
+      process.exit(0);
+    }
   }
 }
 
-main();
+// Global error handlers to prevent hook from hanging on uncaught errors (issue #319)
+process.on('uncaughtException', (error) => {
+  try {
+    process.stderr.write(`[persistent-mode] Uncaught exception: ${error?.message || error}\n`);
+  } catch {
+    // Ignore
+  }
+  try {
+    process.stdout.write(JSON.stringify({ continue: true }) + '\n');
+  } catch {
+    // If we can't write, just exit
+  }
+  process.exit(0);
+});
+
+process.on('unhandledRejection', (error) => {
+  try {
+    process.stderr.write(`[persistent-mode] Unhandled rejection: ${error?.message || error}\n`);
+  } catch {
+    // Ignore
+  }
+  try {
+    process.stdout.write(JSON.stringify({ continue: true }) + '\n');
+  } catch {
+    // If we can't write, just exit
+  }
+  process.exit(0);
+});
+
+// Safety timeout: if hook doesn't complete in 10 seconds, force exit
+// This prevents infinite hangs from any unforeseen issues
+const safetyTimeout = setTimeout(() => {
+  try {
+    process.stderr.write('[persistent-mode] Safety timeout reached, forcing exit\n');
+  } catch {
+    // Ignore
+  }
+  try {
+    process.stdout.write(JSON.stringify({ continue: true }) + '\n');
+  } catch {
+    // If we can't write, just exit
+  }
+  process.exit(0);
+}, 10000);
+
+main().finally(() => {
+  clearTimeout(safetyTimeout);
+});
