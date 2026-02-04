@@ -53,6 +53,10 @@ export interface SisyphusConfig {
     /** Whether ecomode is enabled (default: true). Set to false to disable ecomode completely. */
     enabled?: boolean;
   };
+  /** Whether initial setup has been completed (ISO timestamp) */
+  setupCompleted?: string;
+  /** Version of setup wizard that was completed */
+  setupVersion?: string;
 }
 
 /**
@@ -75,6 +79,8 @@ export function getSisyphusConfig(): SisyphusConfig {
       taskToolConfig: config.taskToolConfig,
       defaultExecutionMode: config.defaultExecutionMode,
       ecomode: config.ecomode,
+      setupCompleted: config.setupCompleted,
+      setupVersion: config.setupVersion,
     };
   } catch {
     // If config file is invalid, default to disabled for security
@@ -314,12 +320,17 @@ export async function performUpdate(options?: {
     const release = await fetchLatestRelease();
     const newVersion = release.tag_name.replace(/^v/, '');
 
-    // Download the install script
-    const installScriptUrl = `${GITHUB_RAW_URL}/main/scripts/install.sh`;
+    // Download the install script from the release tag (not main branch)
+    const releaseTag = release.tag_name; // e.g., "v3.9.8"
+    const installScriptUrl = `${GITHUB_RAW_URL}/${releaseTag}/scripts/install.sh`;
     const response = await fetch(installScriptUrl);
 
     if (!response.ok) {
-      throw new Error(`Failed to download install script: ${response.status}`);
+      // Fallback: suggest /plugin install as the canonical method
+      throw new Error(
+        `Failed to download install script from ${releaseTag}: ${response.status}\n` +
+        'Please update using: /plugin install oh-my-claudecode'
+      );
     }
 
     const scriptContent = await response.text();
@@ -432,7 +443,7 @@ export function formatUpdateNotification(checkResult: UpdateCheckResult): string
     `  Latest version:  ${checkResult.latestVersion}`,
     '',
     '  To update, run: /update',
-    '  Or run: curl -fsSL https://raw.githubusercontent.com/Yeachan-Heo/oh-my-claudecode/main/scripts/install.sh | bash',
+    '  Or reinstall via: /plugin install oh-my-claudecode',
     ''
   ];
 
