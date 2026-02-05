@@ -28,14 +28,14 @@ describe('MCP Server Workflows', () => {
     it('should execute ask_codex tool successfully', async () => {
       // Mock successful CLI execution
       const mockStdout = {
-        on: vi.fn((event: string, callback: Function) => {
+        on: vi.fn((event: string, callback: (data: string) => void) => {
           if (event === 'data') {
             callback(JSON.stringify({ type: 'message', content: 'Codex response here' }) + '\n');
           }
         })
       };
       const mockStderr = { on: vi.fn() };
-      const mockClose = vi.fn((event: string, callback: Function) => {
+      const mockClose = vi.fn((event: string, callback: (code: number) => void) => {
         if (event === 'close') callback(0);
       });
 
@@ -58,7 +58,7 @@ describe('MCP Server Workflows', () => {
       // Mock which command to fail (CLI not found)
       vi.mocked(spawn).mockImplementation((cmd: string) => {
         if (cmd === 'which') {
-          const mockClose = vi.fn((event: string, callback: Function) => {
+          const mockClose = vi.fn((event: string, callback: (...args: unknown[]) => void) => {
             if (event === 'close') callback(1);
           });
           return {
@@ -86,12 +86,12 @@ describe('MCP Server Workflows', () => {
       ].join('\n');
 
       const mockStdout = {
-        on: vi.fn((event: string, callback: Function) => {
+        on: vi.fn((event: string, callback: (...args: unknown[]) => void) => {
           if (event === 'data') callback(jsonlOutput);
         })
       };
       const mockStderr = { on: vi.fn() };
-      const mockClose = vi.fn((event: string, callback: Function) => {
+      const mockClose = vi.fn((event: string, callback: (code: number) => void) => {
         if (event === 'close') callback(0);
       });
 
@@ -107,12 +107,12 @@ describe('MCP Server Workflows', () => {
 
     it('should handle file context in prompts', async () => {
       const mockStdout = {
-        on: vi.fn((event: string, callback: Function) => {
+        on: vi.fn((event: string, callback: (...args: unknown[]) => void) => {
           if (event === 'data') callback('Response with context');
         })
       };
       const mockStderr = { on: vi.fn() };
-      const mockClose = vi.fn((event: string, callback: Function) => {
+      const mockClose = vi.fn((event: string, callback: (code: number) => void) => {
         if (event === 'close') callback(0);
       });
 
@@ -129,21 +129,21 @@ describe('MCP Server Workflows', () => {
     it('should handle Codex CLI errors gracefully', async () => {
       const mockStdout = { on: vi.fn() };
       const mockStderr = {
-        on: vi.fn((event: string, callback: Function) => {
+        on: vi.fn((event: string, callback: (...args: unknown[]) => void) => {
           if (event === 'data') callback('Error: API key not found');
         })
       };
-      const mockClose = vi.fn((event: string, callback: Function) => {
+      const mockClose = vi.fn((event: string, callback: (...args: unknown[]) => void) => {
         if (event === 'close') callback(1);
       });
-      const mockError = vi.fn((event: string, callback: Function) => {
+      const mockError = vi.fn((event: string, callback: (...args: unknown[]) => void) => {
         if (event === 'error') callback(new Error('Spawn failed'));
       });
 
       vi.mocked(spawn).mockReturnValue({
         stdout: mockStdout,
         stderr: mockStderr,
-        on: vi.fn((event: string, callback: Function) => {
+        on: vi.fn((event: string, callback: (...args: unknown[]) => void) => {
           mockClose(event, callback);
           mockError(event, callback);
         })
@@ -173,12 +173,12 @@ describe('MCP Server Workflows', () => {
   describe('Gemini MCP Server Workflow', () => {
     it('should execute ask_gemini tool successfully', async () => {
       const mockStdout = {
-        on: vi.fn((event: string, callback: Function) => {
+        on: vi.fn((event: string, callback: (...args: unknown[]) => void) => {
           if (event === 'data') callback('Gemini analysis complete');
         })
       };
       const mockStderr = { on: vi.fn() };
-      const mockClose = vi.fn((event: string, callback: Function) => {
+      const mockClose = vi.fn((event: string, callback: (code: number) => void) => {
         if (event === 'close') callback(0);
       });
 
@@ -248,7 +248,7 @@ describe('MCP Server Workflows', () => {
     it('should handle Gemini CLI errors gracefully', async () => {
       const mockStdout = { on: vi.fn() };
       const mockStderr = {
-        on: vi.fn((event: string, callback: Function) => {
+        on: vi.fn((event: string, callback: (...args: unknown[]) => void) => {
           if (event === 'data') callback('Error: Authentication failed');
         })
       };
@@ -256,7 +256,7 @@ describe('MCP Server Workflows', () => {
       vi.mocked(spawn).mockReturnValue({
         stdout: mockStdout,
         stderr: mockStderr,
-        on: vi.fn((event: string, callback: Function) => {
+        on: vi.fn((event: string, callback: (...args: unknown[]) => void) => {
           if (event === 'close') callback(1);
         })
       } as any);
