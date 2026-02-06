@@ -5,11 +5,91 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.9.9] - Unreleased
+## [4.0.7] - 2026-02-06
+
+### Added
+
+- **SQLite-backed MCP job state storage** - New `job-state-db.ts` with WAL-mode SQLite for reliable job state persistence. Includes JSON fallback compatibility for environments without native modules.
+- **Improved job management reliability** - SQLite-first reads for check/wait/list/kill flows with automatic fallback to JSON file-based storage.
+- **PreCompact hook job summaries** - Pre-compact hook now injects job summary data from SQLite into checkpoint content.
+- **Comprehensive test coverage** - 74 new unit tests for job-state-db + 16 integration tests for SQLite job management.
+
+### Fixed
+
+- **Windows compatibility** - Platform-aware path normalization (`toForwardSlash()`), `pathToFileURL()` for bridge detection, cross-platform config/data directory resolution (`getConfigDir()`/`getDataDir()`), and `shell: true` for CLI spawn on Windows.
+- **Path traversal hardening** - Strengthened `isAllowedPath` and boundary checks with `isAbsolute()` guard for Windows drive-letter edge cases. Added security regression tests.
+- **Worktree boundary validation** - Hardened and clarified worktree boundary enforcement for MCP file/path handling across codex-core and gemini-core.
+
+### Changed
+
+- **Teleport command** - Now uses `git worktree list` and `fs.rmSync` with cross-platform `path.isAbsolute()` checks.
+- **LSP client** - Updated URI construction to use `pathToFileURL()` for Windows compatibility.
+
+## [4.0.6] - 2026-02-06
+
+### Added
+
+- **Codex/GPT/Gemini magic-keyword MCP delegation** - New keyword detection for `ask codex`, `use gpt`, `delegate to gemini` that routes directly to MCP tools instead of skill invocation. Requires intent phrases to avoid false positives.
+- **Codex model fallback chain** - Automatic retry with fallback models (`gpt-5.3-codex` → `gpt-5.3` → `gpt-5.2-codex` → `gpt-5.2`) on model-not-found errors for both blocking and background execution.
+- **Full sanitization pipeline in TypeScript** - Ported XML tag, URL, file path, and code block stripping from runtime .mjs to TypeScript keyword detector for consistent false-positive prevention.
+
+### Fixed
+
+- **Background retry error handling** - Fixed silent error swallowing when model fallback retry fails in background execution, preventing jobs from getting stuck in "running" state.
+- **Redundant sanitization in keyword wrappers** - Removed double-processing where `hasKeyword`, `getAllKeywords`, and `getPrimaryKeyword` called `removeCodeBlocks` before `detectKeywordsWithType` which already calls `sanitizeForKeywordDetection`.
+
+## [4.0.5] - 2026-02-05
+
+### Changed
+
+- **Include dist/ in git** - Compiled output now ships with the repo so users no longer need to rebuild after plugin install/update. Eliminates the most common setup issue.
+- **Simplified update guide** - All 5 README translations updated with streamlined update instructions (no rebuild step needed).
+- **Removed outdated rebuild instructions** - Cleaned up `commands/omc-setup.md`, `commands/hud.md`, and `skills/hud/SKILL.md` to remove the "Verify Plugin Build" step and related dist/ rebuild guidance.
+
+## [4.0.4] - 2026-02-05
+
+### Fixed
+
+- **Hook Field Name Compatibility** - All 11 hook scripts + 5 templates updated to read snake_case field names (`tool_name`, `tool_input`, `tool_response`, `session_id`, `cwd`) with camelCase fallback. Claude Code sends snake_case but hooks were only reading camelCase, causing silent empty values.
+- **Hook Error Display Noise** - PostToolUse hooks now return `suppressOutput: true` when no meaningful message, reducing "hook error" display noise from Claude Code display bug ([#10936](https://github.com/anthropics/claude-code/issues/10936)).
+
+## [4.0.3] - 2026-02-05
+
+### Fixed
+
+- **Hook TaskCreate/TaskUpdate Compatibility** - Fixed PostToolUse and PreToolUse hooks failing on `TaskCreate` and `TaskUpdate` events after Claude Code renamed the Task tool in Feb 2025 update. Updated tool name matching in `post-tool-verifier.mjs`, `pre-tool-enforcer.mjs`, and `post-tool-use.mjs` template.
+
+### Changed
+
+- **Codex Default Model** - Updated default Codex model from `gpt-5.2` to `gpt-5.3`
+- **Claude Opus 4.6 Support** - Updated all model references from `claude-opus-4-5-20251101` to `claude-opus-4-6-20260205` across config, routing, analytics, and tests
+
+## [4.0.1] - 2026-02-05
+
+### Fixed
+
+- **Codex/Gemini Output File Handling** - Fixed issue where MCP bridge would overwrite output files that the CLI (Codex/Gemini) had already written via shell commands. Now checks file mtime before/after execution and preserves CLI-written content.
+- **Codex JSONL Parser** - Updated `parseCodexOutput()` to handle current Codex CLI JSONL format (`item.completed` events with `item.type === "agent_message"`). Previously only matched older `message` and `output_text` event formats.
+
+## [4.0.0] - 2026-02-05
 
 ### Breaking Changes
 
 - **Node.js 20 Required** - Minimum Node.js version increased from 18 to 20. Users on Node.js 18 must upgrade before using this version. This aligns with Node.js LTS schedule (Node 18 EOL: April 2025).
+
+### Refactored
+
+- **MCP Core Modules** - Extracted shared Codex/Gemini business logic into `codex-core.ts` and `gemini-core.ts`, eliminating code duplication between in-process SDK servers and standalone stdio servers
+- **Slim Server Wrappers** - Reduced `codex-server.ts`, `codex-standalone-server.ts`, `gemini-server.ts`, and `gemini-standalone-server.ts` to thin transport wrappers (~40-70 lines each)
+- **Build Scripts** - Updated esbuild scripts with global npm module resolution banner for proper native module loading
+
+### Changed
+
+- **Codex/Gemini Agent Routing** - Codex (`ask_codex`) now recommended only for reviewer and planning agents (architect, planner, critic, analyst, code-reviewer, security-reviewer, tdd-guide). Gemini (`ask_gemini`) recommended only for design agents (designer, writer, vision). All other agents have no external consultation recommendation.
+- **CLAUDE.md Compacted** - Reduced from 679 to 389 lines (43% smaller). All 33 agents, all skills, and all MCP tools with descriptions now inline. Removed external doc references and redundant troubleshooting section.
+- **Agent Tiers Reference** - Added External AI Consultation section with strict Codex/Gemini routing per agent domain
+- **Model Routing Enforcement** (#384) - Advisory agents (architect, planner, critic) enforce read-only behavior; execution agents get full tool access
+- **Gemini Model Fallback Chain** - Gemini now uses fallback chain: gemini-3-pro-preview → gemini-3-flash-preview → gemini-2.5-pro → gemini-2.5-flash
 
 ### Performance
 
@@ -21,12 +101,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Session Index Caching** - Token tracker now caches session indices with 5-minute TTL for 50-100ms faster stats loading
 - **Space-Optimized Levenshtein** - Levenshtein algorithm now uses O(n) space instead of O(n²)
 
+### Added
+
+- **Job Management Tools** (#420) - Four new MCP tools for background Codex/Gemini job control: `wait_for_job`, `check_job_status`, `kill_job`, `list_jobs`
+- **Version Drift Detection** (#422) - Automatic detection and cleanup of stale plugin versions on session start
+- **HUD Fine-Grained Control** (#399) - Configurable sessionHealth display elements with per-element enable/disable options for context, rate limit, and cost displays
+- **MCP Prompt File Parameters** (#416) - New `prompt_file` and `output_file` parameters for `ask_codex` and `ask_gemini` tools, enabling file-based prompt passing to avoid OS argument length limits
+- **MCP Prompt Persistence Audit Trail** - Prompts now persisted to disk with audit trail for debugging and replay
+- **MCP State Tools Enhancement** - Improved state management tools with better error handling
+- **Plugin-Scoped Codex/Gemini MCP Servers** - Codex and Gemini now registered as plugin-scoped MCP servers with proper discovery
+- **MCP System Prompt Injection** - Codex/Gemini tools now inject system prompts for better agent context
+- **Built-in MCP Tools** - State, notepad, and project memory tools added as built-in MCP tools
+- **Configurable Stop Hook Callbacks** (#395) - Hooks now support configurable callbacks for stop events
+- **Swarm Aggressive Mode** - Wave-based spawning and micro-task decomposition for swarm coordination
+- **Codex/Gemini Timeout Increase** - Both Codex and Gemini timeouts increased to 1 hour for complex analysis tasks
+
 ### Fixed
 
 - **Per-Directory Debounce** - Fixed race condition in subagent tracker where global debounce state could lose writes for different directories
 - **TOCTOU Race Condition** - Fixed time-of-check-time-of-use race in pre-compact by removing existsSync check before async read
 - **True LRU Cache** - Fixed Levenshtein cache to use true LRU eviction (delete+reinsert on hit) instead of FIFO
 - **Session Index Off-by-One** - Fixed off-by-one error in token tracker session index offset calculation
+- **Cache Hit Rate Formula** (#425) - Corrected cache hit rate calculation to include all input token types (was exceeding 100%)
+- **HUD Token Formatting** (#417) - Fixed `formatTokenCount()` returning "0.999k" for values under 1000
+- **LSP goto_definition Null Safety** (#417) - Fixed crash when LSP returns `LocationLink` objects instead of `Location`
+- **MCP Output File Suffix** (#419) - Fixed `output_file` writing to `.raw` suffix instead of the specified path
+- **MCP Stdin Prompt Piping** - Fixed prompts being passed via command line arguments, which could exceed OS limits. Now piped via stdin.
+- **HUD Semver Sorting** (#373) - Fixed version comparison using `semverCompare` for proper plugin cache version selection
+- **Security Hardening** - Cross-platform compatibility improvements and security hardening across MCP tools
+- **Codex/Gemini Role Allowlists** - Fixed role allowlists to match documented routing recommendations
+- **Conflict Markers and Dedup** (#395) - Resolved committed conflict markers and deduplicated index.ts exports
+
+### Breaking Changes (MCP)
+
+- **MCP Response Contract** (#424) - `ask_codex` and `ask_gemini` now return file paths instead of inline content. `output_file` parameter is now required. Added `working_directory` parameter for path resolution.
+- **Prompt Parameter Deprecated** (#421) - The `prompt` parameter for `ask_codex` and `ask_gemini` is removed. Use `prompt_file` instead, which writes prompts to files to avoid OS argument length limits.
+- **Agent Role Required** - `agent_role` parameter is now required for both `ask_codex` and `ask_gemini` tools
+
+---
+
+## [3.9.8] - 2026-02-03
+
+### Bug Fixes
+
+- fix: auto-recover status bar after plugin update (#327, #329)
+  - Filter plugin cache versions to only those with built dist/hud/index.js
+  - Prevents picking unbuilt new version after plugin update
+
+### Features
+
+- feat: add project isolation to state files (#326, #328)
+  - Added project_path validation to all persistent mode states
+  - Prevents cross-project state contamination
+  - Windows path normalization support
+  - Backward compatible with legacy states
 
 ---
 
@@ -1843,19 +1971,3 @@ Task(
 [1.9.0]: https://github.com/Yeachan-Heo/oh-my-claude-sisyphus/compare/v1.8.0...v1.9.0
 [1.8.0]: https://github.com/Yeachan-Heo/oh-my-claude-sisyphus/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/Yeachan-Heo/oh-my-claude-sisyphus/releases/tag/v1.7.0
-
-## [3.9.8] - 2026-02-03
-
-### Bug Fixes
-
-- fix: auto-recover status bar after plugin update (#327, #329)
-  - Filter plugin cache versions to only those with built dist/hud/index.js
-  - Prevents picking unbuilt new version after plugin update
-
-### Features
-
-- feat: add project isolation to state files (#326, #328)
-  - Added project_path validation to all persistent mode states
-  - Prevents cross-project state contamination
-  - Windows path normalization support
-  - Backward compatible with legacy states

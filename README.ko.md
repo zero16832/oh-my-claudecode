@@ -36,6 +36,22 @@ autopilot: build a REST API for managing tasks
 
 끝입니다. 나머지는 모두 자동입니다.
 
+### 업데이트
+
+```bash
+# 1. 플러그인 업데이트
+/plugin install oh-my-claudecode
+
+# 2. 셋업을 다시 실행하여 설정 갱신
+/oh-my-claudecode:omc-setup
+```
+
+업데이트 후 문제가 발생하면, 이전 플러그인 캐시를 정리하세요:
+
+```bash
+/oh-my-claudecode:doctor
+```
+
 <h1 align="center">당신의 Claude가 스테로이드를 맞았습니다.</h1>
 
 <p align="center">
@@ -59,7 +75,7 @@ autopilot: build a REST API for managing tasks
 ## 기능
 
 ### 실행 모드
-다양한 사용 사례를 위한 여러 전략 - 완전 자율 빌드부터 토큰 효율적인 리팩토링까지. [자세히 보기 →](https://yeachan-heo.github.io/oh-my-claudecode-website/execution-modes)
+다양한 사용 사례를 위한 여러 전략 - 완전 자율 빌드부터 토큰 효율적인 리팩토링까지. [자세히 보기 →](https://yeachan-heo.github.io/oh-my-claudecode-website/docs.html#execution-modes)
 
 | 모드 | 속도 | 용도 |
 |------|-------|---------|
@@ -135,6 +151,17 @@ omc wait --stop   # 데몬 비활성화
 
 - [Claude Code](https://docs.anthropic.com/claude-code) CLI
 - Claude Max/Pro 구독 또는 Anthropic API 키
+
+### 선택사항: 멀티 AI 오케스트레이션
+
+OMC는 교차 검증과 디자인 일관성을 위해 외부 AI 제공자를 선택적으로 활용할 수 있습니다. **필수가 아닙니다** — OMC는 이것들 없이도 완벽하게 작동합니다.
+
+| 제공자 | 설치 | 활용 |
+|--------|------|------|
+| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | `npm install -g @google/gemini-cli` | 디자인 리뷰, UI 일관성 (1M 토큰 컨텍스트) |
+| [Codex CLI](https://github.com/openai/codex) | `npm install -g @openai/codex` | 아키텍처 검증, 코드 리뷰 교차 확인 |
+
+**비용:** 3개 Pro 플랜 (Claude + Gemini + ChatGPT)으로 월 ~$60에 모든 것을 커버합니다.
 
 ---
 

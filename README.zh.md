@@ -36,6 +36,22 @@ autopilot: build a REST API for managing tasks
 
 就这么简单。其余都是自动的。
 
+### 更新
+
+```bash
+# 1. 更新插件
+/plugin install oh-my-claudecode
+
+# 2. 重新运行设置以刷新配置
+/oh-my-claudecode:omc-setup
+```
+
+如果更新后遇到问题，清除旧的插件缓存：
+
+```bash
+/oh-my-claudecode:doctor
+```
+
 <h1 align="center">你的 Claude 已被注入超能力。</h1>
 
 <p align="center">
@@ -59,7 +75,7 @@ autopilot: build a REST API for managing tasks
 ## 功能特性
 
 ### 执行模式
-针对不同场景的多种策略 - 从全自动构建到 token 高效重构。[了解更多 →](https://yeachan-heo.github.io/oh-my-claudecode-website/execution-modes)
+针对不同场景的多种策略 - 从全自动构建到 token 高效重构。[了解更多 →](https://yeachan-heo.github.io/oh-my-claudecode-website/docs.html#execution-modes)
 
 | 模式 | 速度 | 适用场景 |
 |------|-------|---------|
@@ -135,6 +151,17 @@ omc wait --stop   # 禁用守护进程
 
 - [Claude Code](https://docs.anthropic.com/claude-code) CLI
 - Claude Max/Pro 订阅 或 Anthropic API 密钥
+
+### 可选：多 AI 编排
+
+OMC 可以选择性地调用外部 AI 提供商进行交叉验证和设计一致性检查。**非必需** — 没有它们 OMC 也能完整运行。
+
+| 提供商 | 安装 | 功能 |
+|--------|------|------|
+| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | `npm install -g @google/gemini-cli` | 设计审查、UI 一致性（1M token 上下文）|
+| [Codex CLI](https://github.com/openai/codex) | `npm install -g @openai/codex` | 架构验证、代码审查交叉检查 |
+
+**费用：** 3 个 Pro 计划（Claude + Gemini + ChatGPT）每月约 $60 即可覆盖所有功能。
 
 ---
 

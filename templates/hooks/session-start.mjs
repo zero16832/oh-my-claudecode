@@ -190,8 +190,8 @@ async function main() {
     let data = {};
     try { data = JSON.parse(input); } catch {}
 
-    const directory = data.directory || process.cwd();
-    const sessionId = data.sessionId || data.session_id || '';
+    const directory = data.cwd || data.directory || process.cwd();
+    const sessionId = data.sessionId || data.session_id || data.sessionid || '';
     const messages = [];
 
     // Check for updates (non-blocking)
@@ -210,7 +210,8 @@ async function main() {
 
 A new version of oh-my-claudecode is available: v${updateInfo.latestVersion} (current: ${updateInfo.currentVersion})
 
-To update, run: claude /install-plugin oh-my-claudecode
+To update, run: omc update
+(This syncs plugin, npm package, and CLAUDE.md together)
 
 </session-restore>
 

@@ -36,6 +36,22 @@ autopilot: build a REST API for managing tasks
 
 Eso es todo. Todo lo demás es automático.
 
+### Actualizar
+
+```bash
+# 1. Actualizar el plugin
+/plugin install oh-my-claudecode
+
+# 2. Volver a ejecutar el setup para actualizar la configuracion
+/oh-my-claudecode:omc-setup
+```
+
+Si experimentas problemas despues de actualizar, limpia la cache antigua del plugin:
+
+```bash
+/oh-my-claudecode:doctor
+```
+
 <h1 align="center">Tu Claude acaba de recibir esteroides.</h1>
 
 <p align="center">
@@ -59,7 +75,7 @@ Eso es todo. Todo lo demás es automático.
 ## Características
 
 ### Modos de Ejecución
-Múltiples estrategias para diferentes casos de uso - desde construcciones completamente autónomas hasta refactorización eficiente en tokens. [Aprende más →](https://yeachan-heo.github.io/oh-my-claudecode-website/execution-modes)
+Múltiples estrategias para diferentes casos de uso - desde construcciones completamente autónomas hasta refactorización eficiente en tokens. [Aprende más →](https://yeachan-heo.github.io/oh-my-claudecode-website/docs.html#execution-modes)
 
 | Modo | Velocidad | Usar Para |
 |------|-------|---------|
@@ -135,6 +151,17 @@ omc wait --stop   # Deshabilitar demonio
 
 - CLI de [Claude Code](https://docs.anthropic.com/claude-code)
 - Suscripción Claude Max/Pro O clave API de Anthropic
+
+### Opcional: Orquestación Multi-IA
+
+OMC puede opcionalmente orquestar proveedores de IA externos para validación cruzada y consistencia de diseño. **No son necesarios** — OMC funciona completamente sin ellos.
+
+| Proveedor | Instalación | Qué habilita |
+|-----------|-------------|--------------|
+| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | `npm install -g @google/gemini-cli` | Revisión de diseño, consistencia UI (contexto de 1M tokens) |
+| [Codex CLI](https://github.com/openai/codex) | `npm install -g @openai/codex` | Validación de arquitectura, verificación cruzada de código |
+
+**Costo:** 3 planes Pro (Claude + Gemini + ChatGPT) cubren todo por ~$60/mes.
 
 ---
 

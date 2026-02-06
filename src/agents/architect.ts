@@ -41,8 +41,7 @@ export const ARCHITECT_PROMPT_METADATA: AgentPromptMetadata = {
 export const architectAgent: AgentConfig = {
   name: 'architect',
   description: 'Read-only consultation agent. High-IQ reasoning specialist for debugging hard problems and high-difficulty architecture design.',
-  prompt: ARCHITECT_PROMPT,
-  tools: ['Read', 'Grep', 'Glob', 'Bash', 'WebSearch', 'lsp_diagnostics', 'lsp_diagnostics_Dir', 'ast_grep_search'],
+  prompt: loadAgentPrompt('architect'),
   model: 'opus',
   defaultModel: 'opus',
   metadata: ARCHITECT_PROMPT_METADATA
