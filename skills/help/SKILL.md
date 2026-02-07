@@ -55,6 +55,81 @@ Your old commands still work! `/ralph`, `/ultrawork`, `/plan`, etc. all function
 
 But now you don't NEED them - everything is automatic.
 
+---
+
+## Usage Analytics
+
+Learn about your OMC usage patterns and get personalized recommendations.
+
+### What It Analyzes
+
+1. Token tracking from `~/.omc/state/token-tracking.jsonl`
+2. Session history from `.omc/state/session-history.json`
+3. Agent usage patterns
+4. Underutilized features
+5. Configuration recommendations
+
+### Running Usage Analysis
+
+```
+/oh-my-claudecode:learn-about-omc
+```
+
+### Example Output
+
+```
+📊 Your OMC Usage Analysis
+
+TOKEN SUMMARY:
+- Total records: 1,234
+- By Model: opus 45%, sonnet 40%, haiku 15%
+
+TOP AGENTS:
+1. executor (234 uses)
+2. architect (89 uses)
+3. explore (67 uses)
+
+UNDERUTILIZED FEATURES:
+- ecomode: 0 uses (could save ~30% on routine tasks)
+- pipeline: 0 uses (great for review workflows)
+
+RECOMMENDATIONS:
+1. Set defaultExecutionMode: "ecomode" to save tokens
+2. Try /pipeline review for PR reviews
+3. Use explore agent before architect to save context
+```
+
+### Personalized Recommendations
+
+Based on your usage patterns, you'll receive tailored suggestions:
+
+**If high Opus usage (>40%) and no ecomode:**
+- "Consider using ecomode for routine tasks to save tokens"
+
+**If no pipeline usage:**
+- "Try /pipeline for code review workflows"
+
+**If no security-reviewer usage:**
+- "Use security-reviewer after auth/API changes"
+
+**If defaultExecutionMode not set:**
+- "Set defaultExecutionMode in /omc-setup for consistent behavior"
+
+### Graceful Degradation
+
+If no data found:
+```
+📊 Limited Usage Data Available
+
+No token tracking found. To enable tracking:
+1. Ensure ~/.omc/state/ directory exists
+2. Run any OMC command to start tracking
+
+Tip: Run /omc-setup to configure OMC properly.
+```
+
+---
+
 ## Need More Help?
 
 - **README**: https://github.com/Yeachan-Heo/oh-my-claudecode
