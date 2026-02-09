@@ -21043,6 +21043,7 @@ var import_path7 = require("path");
 var OmcPaths = {
   ROOT: ".omc",
   STATE: ".omc/state",
+  SESSIONS: ".omc/state/sessions",
   PLANS: ".omc/plans",
   RESEARCH: ".omc/research",
   NOTEPAD: ".omc/notepad.md",
@@ -21112,6 +21113,60 @@ function getWorktreeNotepadPath(worktreeRoot) {
 function getWorktreeProjectMemoryPath(worktreeRoot) {
   const root = worktreeRoot || getWorktreeRoot() || process.cwd();
   return (0, import_path7.join)(root, OmcPaths.PROJECT_MEMORY);
+}
+var SESSION_ID_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,255}$/;
+var processSessionId = null;
+function getProcessSessionId() {
+  if (!processSessionId) {
+    const pid = process.pid;
+    const startTime = Date.now();
+    processSessionId = `pid-${pid}-${startTime}`;
+  }
+  return processSessionId;
+}
+function validateSessionId(sessionId) {
+  if (!sessionId) {
+    throw new Error("Session ID cannot be empty");
+  }
+  if (sessionId.includes("..") || sessionId.includes("/") || sessionId.includes("\\")) {
+    throw new Error(`Invalid session ID: path traversal not allowed (${sessionId})`);
+  }
+  if (!SESSION_ID_REGEX.test(sessionId)) {
+    throw new Error(`Invalid session ID: must be alphanumeric with hyphens/underscores, max 256 chars (${sessionId})`);
+  }
+}
+function resolveSessionStatePath(stateName, sessionId, worktreeRoot) {
+  validateSessionId(sessionId);
+  if (stateName === "swarm" || stateName === "swarm-state") {
+    throw new Error("Swarm uses SQLite (swarm.db), not session-scoped JSON state.");
+  }
+  const normalizedName = stateName.endsWith("-state") ? stateName : `${stateName}-state`;
+  return resolveOmcPath(`state/sessions/${sessionId}/${normalizedName}.json`, worktreeRoot);
+}
+function getSessionStateDir(sessionId, worktreeRoot) {
+  validateSessionId(sessionId);
+  const root = worktreeRoot || getWorktreeRoot() || process.cwd();
+  return (0, import_path7.join)(root, OmcPaths.SESSIONS, sessionId);
+}
+function listSessionIds(worktreeRoot) {
+  const root = worktreeRoot || getWorktreeRoot() || process.cwd();
+  const sessionsDir = (0, import_path7.join)(root, OmcPaths.SESSIONS);
+  if (!(0, import_fs6.existsSync)(sessionsDir)) {
+    return [];
+  }
+  try {
+    const entries = (0, import_fs6.readdirSync)(sessionsDir, { withFileTypes: true });
+    return entries.filter((entry) => entry.isDirectory() && SESSION_ID_REGEX.test(entry.name)).map((entry) => entry.name);
+  } catch {
+    return [];
+  }
+}
+function ensureSessionStateDir(sessionId, worktreeRoot) {
+  const sessionDir = getSessionStateDir(sessionId, worktreeRoot);
+  if (!(0, import_fs6.existsSync)(sessionDir)) {
+    (0, import_fs6.mkdirSync)(sessionDir, { recursive: true });
+  }
+  return sessionDir;
 }
 function validateWorkingDirectory(workingDirectory) {
   const trustedRoot = getWorktreeRoot(process.cwd()) || process.cwd();
@@ -21194,8 +21249,11 @@ var MODE_CONFIGS = {
 function getStateDir(cwd) {
   return (0, import_path8.join)(cwd, ".omc", "state");
 }
-function getStateFilePath(cwd, mode) {
+function getStateFilePath(cwd, mode, sessionId) {
   const config2 = MODE_CONFIGS[mode];
+  if (sessionId && !config2.isSqlite) {
+    return resolveSessionStatePath(mode, sessionId, cwd);
+  }
   return (0, import_path8.join)(getStateDir(cwd), config2.stateFile);
 }
 function getMarkerFilePath(cwd, mode) {
@@ -21203,8 +21261,27 @@ function getMarkerFilePath(cwd, mode) {
   if (!config2.markerFile) return null;
   return (0, import_path8.join)(getStateDir(cwd), config2.markerFile);
 }
-function isJsonModeActive(cwd, mode) {
+function isJsonModeActive(cwd, mode, sessionId) {
   const config2 = MODE_CONFIGS[mode];
+  if (sessionId && !config2.isSqlite) {
+    const sessionStateFile = resolveSessionStatePath(mode, sessionId, cwd);
+    if (!(0, import_fs7.existsSync)(sessionStateFile)) {
+      return false;
+    }
+    try {
+      const content = (0, import_fs7.readFileSync)(sessionStateFile, "utf-8");
+      const state = JSON.parse(content);
+      if (state.session_id && state.session_id !== sessionId) {
+        return false;
+      }
+      if (config2.activeProperty) {
+        return state[config2.activeProperty] === true;
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }
   const stateFile = getStateFilePath(cwd, mode);
   if (!(0, import_fs7.existsSync)(stateFile)) {
     return false;
@@ -21243,32 +21320,43 @@ function isSqliteModeActive(cwd, mode) {
   const dbPath = getStateFilePath(cwd, mode);
   return (0, import_fs7.existsSync)(dbPath);
 }
-function isModeActive(mode, cwd) {
+function isModeActive(mode, cwd, sessionId) {
   const config2 = MODE_CONFIGS[mode];
   if (config2.isSqlite) {
     return isSqliteModeActive(cwd, mode);
   }
-  return isJsonModeActive(cwd, mode);
+  return isJsonModeActive(cwd, mode, sessionId);
 }
-function getActiveModes(cwd) {
+function getActiveModes(cwd, sessionId) {
   const modes = [];
   for (const mode of Object.keys(MODE_CONFIGS)) {
-    if (isModeActive(mode, cwd)) {
+    if (isModeActive(mode, cwd, sessionId)) {
       modes.push(mode);
     }
   }
   return modes;
 }
-function getAllModeStatuses(cwd) {
+function getAllModeStatuses(cwd, sessionId) {
   return Object.keys(MODE_CONFIGS).map((mode) => ({
     mode,
-    active: isModeActive(mode, cwd),
-    stateFilePath: getStateFilePath(cwd, mode)
+    active: isModeActive(mode, cwd, sessionId),
+    stateFilePath: getStateFilePath(cwd, mode, sessionId)
   }));
 }
-function clearModeState(mode, cwd) {
+function clearModeState(mode, cwd, sessionId) {
   const config2 = MODE_CONFIGS[mode];
   let success = true;
+  if (sessionId && !config2.isSqlite) {
+    const sessionStateFile = resolveSessionStatePath(mode, sessionId, cwd);
+    if ((0, import_fs7.existsSync)(sessionStateFile)) {
+      try {
+        (0, import_fs7.unlinkSync)(sessionStateFile);
+      } catch {
+        success = false;
+      }
+    }
+    return success;
+  }
   const stateFile = getStateFilePath(cwd, mode);
   if ((0, import_fs7.existsSync)(stateFile)) {
     try {
@@ -21305,6 +21393,14 @@ function clearModeState(mode, cwd) {
   }
   return success;
 }
+function getActiveSessionsForMode(mode, cwd) {
+  const config2 = MODE_CONFIGS[mode];
+  if (config2.isSqlite) {
+    return [];
+  }
+  const sessionIds = listSessionIds(cwd);
+  return sessionIds.filter((sid) => isJsonModeActive(cwd, mode, sid));
+}
 
 // src/tools/state-tools.ts
 var EXECUTION_MODES = [
@@ -21329,20 +21425,22 @@ var stateReadTool = {
   description: "Read the current state for a specific mode (ralph, ultrawork, autopilot, etc.). Returns the JSON state data or indicates if no state exists.",
   schema: {
     mode: external_exports.enum(STATE_TOOL_MODES).describe("The mode to read state for"),
-    workingDirectory: external_exports.string().optional().describe("Working directory (defaults to cwd)")
+    workingDirectory: external_exports.string().optional().describe("Working directory (defaults to cwd)"),
+    session_id: external_exports.string().optional().describe("Session ID for session-scoped state isolation. STRONGLY RECOMMENDED \u2014 prevents state leakage across parallel Claude Code sessions. When omitted, falls back to legacy shared path.")
   },
   handler: async (args) => {
-    const { mode, workingDirectory } = args;
+    const { mode, workingDirectory, session_id } = args;
     try {
       const root = validateWorkingDirectory(workingDirectory);
-      const statePath = getStatePath(mode, root);
+      const sessionId = session_id || getProcessSessionId();
       if (mode === "swarm") {
-        if (!(0, import_fs8.existsSync)(statePath)) {
+        const statePath2 = getStatePath(mode, root);
+        if (!(0, import_fs8.existsSync)(statePath2)) {
           return {
             content: [{
               type: "text",
               text: `No state found for mode: swarm
-Note: Swarm uses SQLite (swarm.db), not JSON. Expected path: ${statePath}`
+Note: Swarm uses SQLite (swarm.db), not JSON. Expected path: ${statePath2}`
             }]
           };
         }
@@ -21351,33 +21449,116 @@ Note: Swarm uses SQLite (swarm.db), not JSON. Expected path: ${statePath}`
             type: "text",
             text: `## State for swarm
 
-Path: ${statePath}
+Path: ${statePath2}
 
 Note: Swarm uses SQLite database. Use swarm-specific tools to query state.`
           }]
         };
       }
-      if (!(0, import_fs8.existsSync)(statePath)) {
+      if (sessionId) {
+        validateSessionId(sessionId);
+        const statePath2 = MODE_CONFIGS[mode] ? getStateFilePath(root, mode, sessionId) : resolveSessionStatePath(mode, sessionId, root);
+        if (!(0, import_fs8.existsSync)(statePath2)) {
+          return {
+            content: [{
+              type: "text",
+              text: `No state found for mode: ${mode} in session: ${sessionId}
+Expected path: ${statePath2}`
+            }]
+          };
+        }
+        const content = (0, import_fs8.readFileSync)(statePath2, "utf-8");
+        const state = JSON.parse(content);
         return {
           content: [{
             type: "text",
-            text: `No state found for mode: ${mode}
-Expected path: ${statePath}`
-          }]
-        };
-      }
-      const content = (0, import_fs8.readFileSync)(statePath, "utf-8");
-      const state = JSON.parse(content);
-      return {
-        content: [{
-          type: "text",
-          text: `## State for ${mode}
+            text: `## State for ${mode} (session: ${sessionId})
 
-Path: ${statePath}
+Path: ${statePath2}
 
 \`\`\`json
 ${JSON.stringify(state, null, 2)}
 \`\`\``
+          }]
+        };
+      }
+      const statePath = getStatePath(mode, root);
+      const legacyExists = (0, import_fs8.existsSync)(statePath);
+      const sessionIds = listSessionIds(root);
+      const activeSessions = [];
+      for (const sid of sessionIds) {
+        const sessionStatePath = MODE_CONFIGS[mode] ? getStateFilePath(root, mode, sid) : resolveSessionStatePath(mode, sid, root);
+        if ((0, import_fs8.existsSync)(sessionStatePath)) {
+          activeSessions.push(sid);
+        }
+      }
+      if (!legacyExists && activeSessions.length === 0) {
+        return {
+          content: [{
+            type: "text",
+            text: `No state found for mode: ${mode}
+Expected legacy path: ${statePath}
+No active sessions found.
+
+Note: Reading from legacy/aggregate path (no session_id). This may include state from other sessions.`
+          }]
+        };
+      }
+      let output = `## State for ${mode}
+
+Note: Reading from legacy/aggregate path (no session_id). This may include state from other sessions.
+
+`;
+      if (legacyExists) {
+        try {
+          const content = (0, import_fs8.readFileSync)(statePath, "utf-8");
+          const state = JSON.parse(content);
+          output += `### Legacy Path (shared)
+Path: ${statePath}
+
+\`\`\`json
+${JSON.stringify(state, null, 2)}
+\`\`\`
+
+`;
+        } catch {
+          output += `### Legacy Path (shared)
+Path: ${statePath}
+*Error reading state file*
+
+`;
+        }
+      }
+      if (activeSessions.length > 0) {
+        output += `### Active Sessions (${activeSessions.length})
+
+`;
+        for (const sid of activeSessions) {
+          const sessionStatePath = MODE_CONFIGS[mode] ? getStateFilePath(root, mode, sid) : resolveSessionStatePath(mode, sid, root);
+          try {
+            const content = (0, import_fs8.readFileSync)(sessionStatePath, "utf-8");
+            const state = JSON.parse(content);
+            output += `**Session: ${sid}**
+Path: ${sessionStatePath}
+
+\`\`\`json
+${JSON.stringify(state, null, 2)}
+\`\`\`
+
+`;
+          } catch {
+            output += `**Session: ${sid}**
+Path: ${sessionStatePath}
+*Error reading state file*
+
+`;
+          }
+        }
+      }
+      return {
+        content: [{
+          type: "text",
+          text: output
         }]
       };
     } catch (error2) {
@@ -21405,7 +21586,8 @@ var stateWriteTool = {
     completed_at: external_exports.string().optional().describe("ISO timestamp when the mode completed"),
     error: external_exports.string().optional().describe("Error message if the mode failed"),
     state: external_exports.record(external_exports.string(), external_exports.unknown()).optional().describe("Additional custom state fields (merged with explicit parameters)"),
-    workingDirectory: external_exports.string().optional().describe("Working directory (defaults to cwd)")
+    workingDirectory: external_exports.string().optional().describe("Working directory (defaults to cwd)"),
+    session_id: external_exports.string().optional().describe("Session ID for session-scoped state isolation. STRONGLY RECOMMENDED \u2014 prevents state leakage across parallel Claude Code sessions. When omitted, falls back to legacy shared path.")
   },
   handler: async (args) => {
     const {
@@ -21420,10 +21602,12 @@ var stateWriteTool = {
       completed_at,
       error: error2,
       state,
-      workingDirectory
+      workingDirectory,
+      session_id
     } = args;
     try {
       const root = validateWorkingDirectory(workingDirectory);
+      const sessionId = session_id || getProcessSessionId();
       if (mode === "swarm") {
         return {
           content: [{
@@ -21432,8 +21616,15 @@ var stateWriteTool = {
           }]
         };
       }
-      ensureOmcDir("state", root);
-      const statePath = getStatePath(mode, root);
+      let statePath;
+      if (sessionId) {
+        validateSessionId(sessionId);
+        ensureSessionStateDir(sessionId, root);
+        statePath = MODE_CONFIGS[mode] ? getStateFilePath(root, mode, sessionId) : resolveSessionStatePath(mode, sessionId, root);
+      } else {
+        ensureOmcDir("state", root);
+        statePath = getStatePath(mode, root);
+      }
       const builtState = {};
       if (active !== void 0) builtState.active = active;
       if (iteration !== void 0) builtState.iteration = iteration;
@@ -21455,20 +21646,23 @@ var stateWriteTool = {
         ...builtState,
         _meta: {
           mode,
+          sessionId: sessionId || null,
           updatedAt: (/* @__PURE__ */ new Date()).toISOString(),
           updatedBy: "state_write_tool"
         }
       };
       atomicWriteJsonSync(statePath, stateWithMeta);
+      const sessionInfo = sessionId ? ` (session: ${sessionId})` : " (legacy path)";
+      const warningMessage = sessionId ? "" : "\n\nWARNING: No session_id provided. State written to legacy shared path which may leak across parallel sessions. Pass session_id for session-scoped isolation.";
       return {
         content: [{
           type: "text",
-          text: `Successfully wrote state for ${mode}
+          text: `Successfully wrote state for ${mode}${sessionInfo}
 Path: ${statePath}
 
 \`\`\`json
 ${JSON.stringify(stateWithMeta, null, 2)}
-\`\`\``
+\`\`\`${warningMessage}`
         }]
       };
     } catch (error3) {
@@ -21486,41 +21680,93 @@ var stateClearTool = {
   description: "Clear/delete state for a specific mode. Removes the state file and any associated marker files.",
   schema: {
     mode: external_exports.enum(STATE_TOOL_MODES).describe("The mode to clear state for"),
-    workingDirectory: external_exports.string().optional().describe("Working directory (defaults to cwd)")
+    workingDirectory: external_exports.string().optional().describe("Working directory (defaults to cwd)"),
+    session_id: external_exports.string().optional().describe("Session ID for session-scoped state isolation. STRONGLY RECOMMENDED \u2014 prevents state leakage across parallel Claude Code sessions. When omitted, falls back to legacy shared path.")
   },
   handler: async (args) => {
-    const { mode, workingDirectory } = args;
+    const { mode, workingDirectory, session_id } = args;
     try {
       const root = validateWorkingDirectory(workingDirectory);
-      if (MODE_CONFIGS[mode]) {
-        const success = clearModeState(mode, root);
-        if (success) {
+      const sessionId = session_id || getProcessSessionId();
+      if (sessionId) {
+        validateSessionId(sessionId);
+        if (MODE_CONFIGS[mode]) {
+          const success = clearModeState(mode, root, sessionId);
+          if (success) {
+            return {
+              content: [{
+                type: "text",
+                text: `Successfully cleared state for mode: ${mode} in session: ${sessionId}`
+              }]
+            };
+          } else {
+            return {
+              content: [{
+                type: "text",
+                text: `Warning: Some files could not be removed for mode: ${mode} in session: ${sessionId}`
+              }]
+            };
+          }
+        }
+        const statePath = resolveSessionStatePath(mode, sessionId, root);
+        if ((0, import_fs8.existsSync)(statePath)) {
+          (0, import_fs8.unlinkSync)(statePath);
           return {
             content: [{
               type: "text",
-              text: `Successfully cleared state for mode: ${mode}`
+              text: `Successfully cleared state for mode: ${mode} in session: ${sessionId}
+Removed: ${statePath}`
             }]
           };
         } else {
           return {
             content: [{
               type: "text",
-              text: `Warning: Some files could not be removed for mode: ${mode}`
+              text: `No state found to clear for mode: ${mode} in session: ${sessionId}`
             }]
           };
         }
       }
-      const statePath = getStatePath(mode, root);
-      if ((0, import_fs8.existsSync)(statePath)) {
-        (0, import_fs8.unlinkSync)(statePath);
-        return {
-          content: [{
-            type: "text",
-            text: `Successfully cleared state for mode: ${mode}
-Removed: ${statePath}`
-          }]
-        };
+      let clearedCount = 0;
+      const errors = [];
+      if (MODE_CONFIGS[mode]) {
+        if (clearModeState(mode, root)) {
+          clearedCount++;
+        } else {
+          errors.push("legacy path");
+        }
       } else {
+        const statePath = getStatePath(mode, root);
+        if ((0, import_fs8.existsSync)(statePath)) {
+          try {
+            (0, import_fs8.unlinkSync)(statePath);
+            clearedCount++;
+          } catch {
+            errors.push("legacy path");
+          }
+        }
+      }
+      const sessionIds = listSessionIds(root);
+      for (const sid of sessionIds) {
+        if (MODE_CONFIGS[mode]) {
+          if (clearModeState(mode, root, sid)) {
+            clearedCount++;
+          } else {
+            errors.push(`session: ${sid}`);
+          }
+        } else {
+          const statePath = resolveSessionStatePath(mode, sid, root);
+          if ((0, import_fs8.existsSync)(statePath)) {
+            try {
+              (0, import_fs8.unlinkSync)(statePath);
+              clearedCount++;
+            } catch {
+              errors.push(`session: ${sid}`);
+            }
+          }
+        }
+      }
+      if (clearedCount === 0 && errors.length === 0) {
         return {
           content: [{
             type: "text",
@@ -21528,6 +21774,18 @@ Removed: ${statePath}`
           }]
         };
       }
+      let message = `Cleared state for mode: ${mode}
+- Locations cleared: ${clearedCount}`;
+      if (errors.length > 0) {
+        message += `
+- Errors: ${errors.join(", ")}`;
+      }
+      return {
+        content: [{
+          type: "text",
+          text: message
+        }]
+      };
     } catch (error2) {
       return {
         content: [{
@@ -21542,25 +21800,89 @@ var stateListActiveTool = {
   name: "state_list_active",
   description: "List all currently active modes. Returns which modes have active state files.",
   schema: {
-    workingDirectory: external_exports.string().optional().describe("Working directory (defaults to cwd)")
+    workingDirectory: external_exports.string().optional().describe("Working directory (defaults to cwd)"),
+    session_id: external_exports.string().optional().describe("Session ID for session-scoped state isolation. STRONGLY RECOMMENDED \u2014 prevents state leakage across parallel Claude Code sessions. When omitted, falls back to legacy shared path.")
   },
   handler: async (args) => {
-    const { workingDirectory } = args;
+    const { workingDirectory, session_id } = args;
     try {
       const root = validateWorkingDirectory(workingDirectory);
-      const activeModes = [...getActiveModes(root)];
+      const sessionId = session_id || getProcessSessionId();
+      if (sessionId) {
+        validateSessionId(sessionId);
+        const activeModes = [...getActiveModes(root, sessionId)];
+        try {
+          const ralplanPath2 = resolveSessionStatePath("ralplan", sessionId, root);
+          if ((0, import_fs8.existsSync)(ralplanPath2)) {
+            const content = (0, import_fs8.readFileSync)(ralplanPath2, "utf-8");
+            const state = JSON.parse(content);
+            if (state.active) {
+              activeModes.push("ralplan");
+            }
+          }
+        } catch {
+        }
+        if (activeModes.length === 0) {
+          return {
+            content: [{
+              type: "text",
+              text: `## Active Modes (session: ${sessionId})
+
+No modes are currently active in this session.`
+            }]
+          };
+        }
+        const modeList = activeModes.map((mode) => `- **${mode}**`).join("\n");
+        return {
+          content: [{
+            type: "text",
+            text: `## Active Modes (session: ${sessionId}, ${activeModes.length})
+
+${modeList}`
+          }]
+        };
+      }
+      const modeSessionMap = /* @__PURE__ */ new Map();
+      const legacyActiveModes = [...getActiveModes(root)];
       const ralplanPath = getStatePath("ralplan", root);
       if ((0, import_fs8.existsSync)(ralplanPath)) {
         try {
           const content = (0, import_fs8.readFileSync)(ralplanPath, "utf-8");
           const state = JSON.parse(content);
           if (state.active) {
-            activeModes.push("ralplan");
+            legacyActiveModes.push("ralplan");
           }
         } catch {
         }
       }
-      if (activeModes.length === 0) {
+      for (const mode of legacyActiveModes) {
+        if (!modeSessionMap.has(mode)) {
+          modeSessionMap.set(mode, []);
+        }
+        modeSessionMap.get(mode).push("legacy");
+      }
+      const sessionIds = listSessionIds(root);
+      for (const sid of sessionIds) {
+        const sessionActiveModes = [...getActiveModes(root, sid)];
+        try {
+          const ralplanSessionPath = resolveSessionStatePath("ralplan", sid, root);
+          if ((0, import_fs8.existsSync)(ralplanSessionPath)) {
+            const content = (0, import_fs8.readFileSync)(ralplanSessionPath, "utf-8");
+            const state = JSON.parse(content);
+            if (state.active) {
+              sessionActiveModes.push("ralplan");
+            }
+          }
+        } catch {
+        }
+        for (const mode of sessionActiveModes) {
+          if (!modeSessionMap.has(mode)) {
+            modeSessionMap.set(mode, []);
+          }
+          modeSessionMap.get(mode).push(sid);
+        }
+      }
+      if (modeSessionMap.size === 0) {
         return {
           content: [{
             type: "text",
@@ -21568,13 +21890,15 @@ var stateListActiveTool = {
           }]
         };
       }
-      const modeList = activeModes.map((mode) => `- **${mode}**`).join("\n");
+      const lines = [`## Active Modes (${modeSessionMap.size})
+`];
+      for (const [mode, sessions] of Array.from(modeSessionMap.entries())) {
+        lines.push(`- **${mode}** (${sessions.join(", ")})`);
+      }
       return {
         content: [{
           type: "text",
-          text: `## Active Modes (${activeModes.length})
-
-${modeList}`
+          text: lines.join("\n")
         }]
       };
     } catch (error2) {
@@ -21592,58 +21916,115 @@ var stateGetStatusTool = {
   description: "Get detailed status for a specific mode or all modes. Shows active status, file paths, and state contents.",
   schema: {
     mode: external_exports.enum(STATE_TOOL_MODES).optional().describe("Specific mode to check (omit for all modes)"),
-    workingDirectory: external_exports.string().optional().describe("Working directory (defaults to cwd)")
+    workingDirectory: external_exports.string().optional().describe("Working directory (defaults to cwd)"),
+    session_id: external_exports.string().optional().describe("Session ID for session-scoped state isolation. STRONGLY RECOMMENDED \u2014 prevents state leakage across parallel Claude Code sessions. When omitted, falls back to legacy shared path.")
   },
   handler: async (args) => {
-    const { mode, workingDirectory } = args;
+    const { mode, workingDirectory, session_id } = args;
     try {
       const root = validateWorkingDirectory(workingDirectory);
+      const sessionId = session_id || getProcessSessionId();
       if (mode) {
-        const statePath = getStatePath(mode, root);
-        const active = MODE_CONFIGS[mode] ? isModeActive(mode, root) : (0, import_fs8.existsSync)(statePath) && (() => {
+        const lines2 = [`## Status: ${mode}
+`];
+        if (sessionId) {
+          validateSessionId(sessionId);
+          const statePath = MODE_CONFIGS[mode] ? getStateFilePath(root, mode, sessionId) : resolveSessionStatePath(mode, sessionId, root);
+          const active = MODE_CONFIGS[mode] ? isModeActive(mode, root, sessionId) : (0, import_fs8.existsSync)(statePath) && (() => {
+            try {
+              const content = (0, import_fs8.readFileSync)(statePath, "utf-8");
+              const state = JSON.parse(content);
+              return state.active === true;
+            } catch {
+              return false;
+            }
+          })();
+          let statePreview = "No state file";
+          if ((0, import_fs8.existsSync)(statePath)) {
+            try {
+              const content = (0, import_fs8.readFileSync)(statePath, "utf-8");
+              const state = JSON.parse(content);
+              statePreview = JSON.stringify(state, null, 2).slice(0, 500);
+              if (statePreview.length >= 500) statePreview += "\n...(truncated)";
+            } catch {
+              statePreview = "Error reading state file";
+            }
+          }
+          lines2.push(`### Session: ${sessionId}`);
+          lines2.push(`- **Active:** ${active ? "Yes" : "No"}`);
+          lines2.push(`- **State Path:** ${statePath}`);
+          lines2.push(`- **Exists:** ${(0, import_fs8.existsSync)(statePath) ? "Yes" : "No"}`);
+          lines2.push(`
+### State Preview
+\`\`\`json
+${statePreview}
+\`\`\``);
+          return {
+            content: [{
+              type: "text",
+              text: lines2.join("\n")
+            }]
+          };
+        }
+        const legacyPath = getStatePath(mode, root);
+        const legacyActive = MODE_CONFIGS[mode] ? isModeActive(mode, root) : (0, import_fs8.existsSync)(legacyPath) && (() => {
           try {
-            const content = (0, import_fs8.readFileSync)(statePath, "utf-8");
+            const content = (0, import_fs8.readFileSync)(legacyPath, "utf-8");
             const state = JSON.parse(content);
             return state.active === true;
           } catch {
             return false;
           }
         })();
-        let statePreview = "No state file";
-        if ((0, import_fs8.existsSync)(statePath)) {
+        lines2.push(`### Legacy Path`);
+        lines2.push(`- **Active:** ${legacyActive ? "Yes" : "No"}`);
+        lines2.push(`- **State Path:** ${legacyPath}`);
+        lines2.push(`- **Exists:** ${(0, import_fs8.existsSync)(legacyPath) ? "Yes" : "No"}
+`);
+        const activeSessions = MODE_CONFIGS[mode] ? getActiveSessionsForMode(mode, root) : listSessionIds(root).filter((sid) => {
           try {
-            const content = (0, import_fs8.readFileSync)(statePath, "utf-8");
-            const state = JSON.parse(content);
-            statePreview = JSON.stringify(state, null, 2).slice(0, 500);
-            if (statePreview.length >= 500) statePreview += "\n...(truncated)";
+            const sessionPath = resolveSessionStatePath(mode, sid, root);
+            if ((0, import_fs8.existsSync)(sessionPath)) {
+              const content = (0, import_fs8.readFileSync)(sessionPath, "utf-8");
+              const state = JSON.parse(content);
+              return state.active === true;
+            }
+            return false;
           } catch {
-            statePreview = "Error reading state file";
+            return false;
           }
+        });
+        if (activeSessions.length > 0) {
+          lines2.push(`### Active Sessions (${activeSessions.length})`);
+          for (const sid of activeSessions) {
+            lines2.push(`- ${sid}`);
+          }
+        } else {
+          lines2.push(`### Active Sessions
+No active sessions for this mode.`);
         }
         return {
           content: [{
             type: "text",
-            text: `## Status: ${mode}
-
-- **Active:** ${active ? "Yes" : "No"}
-- **State Path:** ${statePath}
-- **Exists:** ${(0, import_fs8.existsSync)(statePath) ? "Yes" : "No"}
-
-### State Preview
-\`\`\`json
-${statePreview}
-\`\`\``
+            text: lines2.join("\n")
           }]
         };
       }
-      const statuses = getAllModeStatuses(root);
-      const lines = ["## All Mode Statuses\n"];
+      const statuses = getAllModeStatuses(root, sessionId);
+      const lines = sessionId ? [`## All Mode Statuses (session: ${sessionId})
+`] : ["## All Mode Statuses\n"];
       for (const status of statuses) {
         const icon = status.active ? "[ACTIVE]" : "[INACTIVE]";
         lines.push(`${icon} **${status.mode}**: ${status.active ? "Active" : "Inactive"}`);
         lines.push(`   Path: \`${status.stateFilePath}\``);
+        if (!sessionId && MODE_CONFIGS[status.mode]) {
+          const activeSessions = getActiveSessionsForMode(status.mode, root);
+          if (activeSessions.length > 0) {
+            lines.push(`   Active sessions: ${activeSessions.join(", ")}`);
+          }
+        }
       }
-      const ralplanPath = getStatePath("ralplan", root);
+      const ralplanPath = sessionId ? resolveSessionStatePath("ralplan", sessionId, root) : getStatePath("ralplan", root);
       let ralplanActive = false;
       if ((0, import_fs8.existsSync)(ralplanPath)) {
         try {
@@ -22627,6 +23008,546 @@ var memoryTools = [
   projectMemoryAddDirectiveTool
 ];
 
+// src/tools/trace-tools.ts
+var import_fs12 = require("fs");
+var import_path17 = require("path");
+
+// src/hooks/subagent-tracker/session-replay.ts
+var import_fs11 = require("fs");
+var import_path16 = require("path");
+var REPLAY_PREFIX = "agent-replay-";
+var MAX_REPLAY_SIZE_BYTES = 5 * 1024 * 1024;
+function getReplayFilePath(directory, sessionId) {
+  const stateDir = (0, import_path16.join)(directory, ".omc", "state");
+  if (!(0, import_fs11.existsSync)(stateDir)) {
+    (0, import_fs11.mkdirSync)(stateDir, { recursive: true });
+  }
+  const safeId = sessionId.replace(/[^a-zA-Z0-9_-]/g, "_");
+  return (0, import_path16.join)(stateDir, `${REPLAY_PREFIX}${safeId}.jsonl`);
+}
+function readReplayEvents(directory, sessionId) {
+  const filePath = getReplayFilePath(directory, sessionId);
+  if (!(0, import_fs11.existsSync)(filePath)) return [];
+  try {
+    const content = (0, import_fs11.readFileSync)(filePath, "utf-8");
+    return content.split("\n").filter((line) => line.trim()).map((line) => {
+      try {
+        return JSON.parse(line);
+      } catch {
+        return null;
+      }
+    }).filter((e) => e !== null);
+  } catch {
+    return [];
+  }
+}
+function detectCycles(sequence) {
+  if (sequence.length < 2) return { cycles: 0, pattern: "" };
+  for (let patLen = 2; patLen <= Math.floor(sequence.length / 2); patLen++) {
+    const candidate = sequence.slice(0, patLen);
+    let fullCycles = 0;
+    for (let i = 0; i + patLen <= sequence.length; i += patLen) {
+      const chunk = sequence.slice(i, i + patLen);
+      if (chunk.every((v, idx) => v === candidate[idx])) {
+        fullCycles++;
+      } else {
+        break;
+      }
+    }
+    if (fullCycles >= 2) {
+      return {
+        cycles: fullCycles,
+        pattern: candidate.join("/")
+      };
+    }
+  }
+  return { cycles: 0, pattern: "" };
+}
+function getReplaySummary(directory, sessionId) {
+  const events = readReplayEvents(directory, sessionId);
+  const summary = {
+    session_id: sessionId,
+    duration_seconds: 0,
+    total_events: events.length,
+    agents_spawned: 0,
+    agents_completed: 0,
+    agents_failed: 0,
+    tool_summary: {},
+    bottlenecks: [],
+    timeline_range: { start: 0, end: 0 },
+    files_touched: []
+  };
+  if (events.length === 0) return summary;
+  summary.timeline_range.start = events[0].t;
+  summary.timeline_range.end = events[events.length - 1].t;
+  summary.duration_seconds = summary.timeline_range.end - summary.timeline_range.start;
+  const filesSet = /* @__PURE__ */ new Set();
+  const agentToolTimings = /* @__PURE__ */ new Map();
+  const agentTypeStats = /* @__PURE__ */ new Map();
+  const agentTypeSequence = [];
+  for (const event of events) {
+    switch (event.event) {
+      case "agent_start":
+        summary.agents_spawned++;
+        if (event.agent_type) {
+          const type = event.agent_type;
+          if (!agentTypeStats.has(type)) {
+            agentTypeStats.set(type, { count: 0, total_ms: 0, models: /* @__PURE__ */ new Set() });
+          }
+          agentTypeStats.get(type).count++;
+          if (event.model) agentTypeStats.get(type).models.add(event.model);
+          agentTypeSequence.push(type);
+        }
+        break;
+      case "agent_stop":
+        if (event.success) summary.agents_completed++;
+        else summary.agents_failed++;
+        if (event.agent_type && event.duration_ms) {
+          const stats = agentTypeStats.get(event.agent_type);
+          if (stats) stats.total_ms += event.duration_ms;
+        }
+        break;
+      case "tool_end":
+        if (event.tool) {
+          if (!summary.tool_summary[event.tool]) {
+            summary.tool_summary[event.tool] = { count: 0, total_ms: 0, avg_ms: 0, max_ms: 0 };
+          }
+          const ts = summary.tool_summary[event.tool];
+          ts.count++;
+          if (event.duration_ms) {
+            ts.total_ms += event.duration_ms;
+            ts.max_ms = Math.max(ts.max_ms, event.duration_ms);
+            ts.avg_ms = Math.round(ts.total_ms / ts.count);
+          }
+          if (event.agent && event.duration_ms) {
+            if (!agentToolTimings.has(event.agent)) {
+              agentToolTimings.set(event.agent, /* @__PURE__ */ new Map());
+            }
+            const agentTools = agentToolTimings.get(event.agent);
+            if (!agentTools.has(event.tool)) {
+              agentTools.set(event.tool, []);
+            }
+            agentTools.get(event.tool).push(event.duration_ms);
+          }
+        }
+        break;
+      case "file_touch":
+        if (event.file) filesSet.add(event.file);
+        break;
+      case "hook_fire":
+        if (!summary.hooks_fired) summary.hooks_fired = 0;
+        summary.hooks_fired++;
+        break;
+      case "keyword_detected":
+        if (!summary.keywords_detected) summary.keywords_detected = [];
+        if (event.keyword && !summary.keywords_detected.includes(event.keyword)) {
+          summary.keywords_detected.push(event.keyword);
+        }
+        break;
+      case "skill_activated":
+        if (!summary.skills_activated) summary.skills_activated = [];
+        if (event.skill_name && !summary.skills_activated.includes(event.skill_name)) {
+          summary.skills_activated.push(event.skill_name);
+        }
+        break;
+      case "skill_invoked":
+        if (!summary.skills_invoked) summary.skills_invoked = [];
+        if (event.skill_name && !summary.skills_invoked.includes(event.skill_name)) {
+          summary.skills_invoked.push(event.skill_name);
+        }
+        break;
+      case "mode_change":
+        if (!summary.mode_transitions) summary.mode_transitions = [];
+        if (event.mode_from !== void 0 && event.mode_to !== void 0) {
+          summary.mode_transitions.push({ from: event.mode_from, to: event.mode_to, at: event.t });
+        }
+        break;
+    }
+  }
+  summary.files_touched = Array.from(filesSet);
+  if (agentTypeStats.size > 0) {
+    summary.agent_breakdown = [];
+    for (const [type, stats] of agentTypeStats) {
+      summary.agent_breakdown.push({
+        type,
+        count: stats.count,
+        total_ms: stats.total_ms,
+        avg_ms: stats.count > 0 ? Math.round(stats.total_ms / stats.count) : 0,
+        models: Array.from(stats.models)
+      });
+    }
+    summary.agent_breakdown.sort((a, b) => b.count - a.count);
+  }
+  if (agentTypeSequence.length >= 2) {
+    const { cycles, pattern } = detectCycles(agentTypeSequence);
+    if (cycles > 0) {
+      summary.cycle_count = cycles;
+      summary.cycle_pattern = pattern;
+    }
+  }
+  for (const [agent, tools] of agentToolTimings) {
+    for (const [tool, durations] of tools) {
+      if (durations.length >= 2) {
+        const avg = Math.round(durations.reduce((a, b) => a + b, 0) / durations.length);
+        if (avg > 1e3) {
+          summary.bottlenecks.push({ tool, agent, avg_ms: avg });
+        }
+      }
+    }
+  }
+  summary.bottlenecks.sort((a, b) => b.avg_ms - a.avg_ms);
+  return summary;
+}
+
+// src/tools/trace-tools.ts
+var REPLAY_PREFIX2 = "agent-replay-";
+function findLatestSessionId(directory) {
+  const stateDir = (0, import_path17.join)(directory, ".omc", "state");
+  try {
+    const files = (0, import_fs12.readdirSync)(stateDir).filter((f) => f.startsWith(REPLAY_PREFIX2) && f.endsWith(".jsonl")).map((f) => ({
+      name: f,
+      sessionId: f.slice(REPLAY_PREFIX2.length, -".jsonl".length),
+      mtime: (0, import_fs12.statSync)((0, import_path17.join)(stateDir, f)).mtimeMs
+    })).sort((a, b) => b.mtime - a.mtime);
+    return files.length > 0 ? files[0].sessionId : null;
+  } catch {
+    return null;
+  }
+}
+function formatEventType(event) {
+  const map = {
+    agent_start: "AGENT",
+    agent_stop: "AGENT",
+    tool_start: "TOOL",
+    tool_end: "TOOL",
+    file_touch: "FILE",
+    intervention: "INTERVENE",
+    error: "ERROR",
+    hook_fire: "HOOK",
+    hook_result: "HOOK",
+    keyword_detected: "KEYWORD",
+    skill_activated: "SKILL",
+    skill_invoked: "SKILL",
+    mode_change: "MODE"
+  };
+  return (map[event] || event.toUpperCase()).padEnd(9);
+}
+function formatTimelineEvent(event) {
+  const time3 = `${event.t.toFixed(1)}s`.padStart(7);
+  const type = formatEventType(event.event);
+  let detail = "";
+  switch (event.event) {
+    case "agent_start":
+      detail = `[${event.agent}] ${event.agent_type || "unknown"} started`;
+      if (event.task) detail += ` "${event.task}"`;
+      if (event.model) detail += ` (${event.model})`;
+      break;
+    case "agent_stop":
+      detail = `[${event.agent}] ${event.agent_type || "unknown"} ${event.success ? "completed" : "FAILED"}`;
+      if (event.duration_ms) detail += ` (${(event.duration_ms / 1e3).toFixed(1)}s)`;
+      break;
+    case "tool_start":
+      detail = `[${event.agent}] ${event.tool} started`;
+      break;
+    case "tool_end":
+      detail = `[${event.agent}] ${event.tool}`;
+      if (event.duration_ms) detail += ` (${event.duration_ms}ms)`;
+      if (event.success === false) detail += " FAILED";
+      break;
+    case "file_touch":
+      detail = `[${event.agent}] ${event.file}`;
+      break;
+    case "intervention":
+      detail = `[${event.agent}] ${event.reason}`;
+      break;
+    case "error":
+      detail = `[${event.agent}] ${event.reason || "unknown error"}`;
+      break;
+    case "hook_fire":
+      detail = `${event.hook} fired (${event.hook_event})`;
+      break;
+    case "hook_result":
+      detail = `${event.hook} result`;
+      if (event.duration_ms) detail += ` (${event.duration_ms}ms`;
+      if (event.context_injected) detail += `, context: ${event.context_length || "?"}B`;
+      if (event.duration_ms) detail += ")";
+      break;
+    case "keyword_detected":
+      detail = `"${event.keyword}" detected`;
+      break;
+    case "skill_activated":
+      detail = `${event.skill_name} activated (${event.skill_source})`;
+      break;
+    case "skill_invoked":
+      detail = `${event.skill_name} invoked (via Skill tool)`;
+      break;
+    case "mode_change":
+      detail = `${event.mode_from} -> ${event.mode_to}`;
+      break;
+    default:
+      detail = JSON.stringify(event);
+  }
+  return `${time3}  ${type} ${detail}`;
+}
+function filterEvents(events, filter) {
+  if (filter === "all") return events;
+  const filterMap = {
+    all: [],
+    hooks: ["hook_fire", "hook_result"],
+    skills: ["skill_activated", "skill_invoked"],
+    agents: ["agent_start", "agent_stop"],
+    keywords: ["keyword_detected"],
+    tools: ["tool_start", "tool_end"],
+    modes: ["mode_change"]
+  };
+  const allowed = filterMap[filter];
+  if (!allowed) return events;
+  return events.filter((e) => allowed.includes(e.event));
+}
+function buildExecutionFlow(events) {
+  const flow = [];
+  const KEY_EVENTS = /* @__PURE__ */ new Set([
+    "keyword_detected",
+    "skill_activated",
+    "skill_invoked",
+    "mode_change",
+    "agent_start",
+    "agent_stop"
+  ]);
+  for (const event of events) {
+    if (!KEY_EVENTS.has(event.event)) continue;
+    switch (event.event) {
+      case "keyword_detected":
+        flow.push(`Keyword "${event.keyword}" detected`);
+        break;
+      case "skill_activated":
+        flow.push(`${event.skill_name} skill activated (${event.skill_source})`);
+        break;
+      case "skill_invoked":
+        flow.push(`${event.skill_name} invoked (via Skill tool)`);
+        break;
+      case "mode_change":
+        flow.push(`Mode: ${event.mode_from} -> ${event.mode_to}`);
+        break;
+      case "agent_start": {
+        const type = event.agent_type || "unknown";
+        const model = event.model ? `, ${event.model}` : "";
+        flow.push(`${type} agent spawned (${event.agent}${model})`);
+        break;
+      }
+      case "agent_stop": {
+        const type = event.agent_type || "unknown";
+        const status = event.success ? "completed" : "FAILED";
+        const dur = event.duration_ms ? ` ${(event.duration_ms / 1e3).toFixed(1)}s` : "";
+        flow.push(`${type} agent ${status} (${event.agent}${dur})`);
+        break;
+      }
+    }
+  }
+  return flow;
+}
+var traceTimelineTool = {
+  name: "trace_timeline",
+  description: "Show chronological agent flow trace timeline. Displays hooks, keywords, skills, agents, and tools in time order. Use filter to show specific event types.",
+  schema: {
+    sessionId: external_exports.string().optional().describe("Session ID (auto-detects latest if omitted)"),
+    filter: external_exports.enum(["all", "hooks", "skills", "agents", "keywords", "tools", "modes"]).optional().describe("Filter to show specific event types (default: all)"),
+    last: external_exports.number().optional().describe("Limit to last N events"),
+    workingDirectory: external_exports.string().optional().describe("Working directory (defaults to cwd)")
+  },
+  handler: async (args) => {
+    const { sessionId: requestedSessionId, filter = "all", last, workingDirectory } = args;
+    try {
+      const root = validateWorkingDirectory(workingDirectory);
+      const sessionId = requestedSessionId || findLatestSessionId(root);
+      if (!sessionId) {
+        return {
+          content: [{
+            type: "text",
+            text: "## Agent Flow Trace\n\nNo trace sessions found. Traces are recorded automatically during agent execution."
+          }]
+        };
+      }
+      let events = readReplayEvents(root, sessionId);
+      if (events.length === 0) {
+        return {
+          content: [{
+            type: "text",
+            text: `## Agent Flow Trace (session: ${sessionId})
+
+No events recorded for this session.`
+          }]
+        };
+      }
+      events = filterEvents(events, filter);
+      if (last && last > 0 && events.length > last) {
+        events = events.slice(-last);
+      }
+      const duration3 = events.length > 0 ? (events[events.length - 1].t - events[0].t).toFixed(1) : "0.0";
+      const lines = [
+        `## Agent Flow Trace (session: ${sessionId})`,
+        `Duration: ${duration3}s | Events: ${events.length}${filter !== "all" ? ` | Filter: ${filter}` : ""}`,
+        ""
+      ];
+      for (const event of events) {
+        lines.push(formatTimelineEvent(event));
+      }
+      return {
+        content: [{
+          type: "text",
+          text: lines.join("\n")
+        }]
+      };
+    } catch (error2) {
+      return {
+        content: [{
+          type: "text",
+          text: `Error reading trace: ${error2 instanceof Error ? error2.message : String(error2)}`
+        }]
+      };
+    }
+  }
+};
+var traceSummaryTool = {
+  name: "trace_summary",
+  description: "Show aggregate statistics for an agent flow trace session. Includes hook stats, keyword frequencies, skill activations, mode transitions, and tool bottlenecks.",
+  schema: {
+    sessionId: external_exports.string().optional().describe("Session ID (auto-detects latest if omitted)"),
+    workingDirectory: external_exports.string().optional().describe("Working directory (defaults to cwd)")
+  },
+  handler: async (args) => {
+    const { sessionId: requestedSessionId, workingDirectory } = args;
+    try {
+      const root = validateWorkingDirectory(workingDirectory);
+      const sessionId = requestedSessionId || findLatestSessionId(root);
+      if (!sessionId) {
+        return {
+          content: [{
+            type: "text",
+            text: "## Trace Summary\n\nNo trace sessions found."
+          }]
+        };
+      }
+      const summary = getReplaySummary(root, sessionId);
+      if (summary.total_events === 0) {
+        return {
+          content: [{
+            type: "text",
+            text: `## Trace Summary (session: ${sessionId})
+
+No events recorded.`
+          }]
+        };
+      }
+      const lines = [
+        `## Trace Summary (session: ${sessionId})`,
+        "",
+        `### Overview`,
+        `- **Duration:** ${summary.duration_seconds.toFixed(1)}s`,
+        `- **Total Events:** ${summary.total_events}`,
+        `- **Agents:** ${summary.agents_spawned} spawned, ${summary.agents_completed} completed, ${summary.agents_failed} failed`,
+        ""
+      ];
+      if (summary.agent_breakdown && summary.agent_breakdown.length > 0) {
+        lines.push(`### Agent Activity`);
+        lines.push("| Agent | Invocations | Total Time | Model | Avg Duration |");
+        lines.push("|-------|-------------|------------|-------|--------------|");
+        for (const ab of summary.agent_breakdown) {
+          const totalSec = ab.total_ms > 0 ? `${(ab.total_ms / 1e3).toFixed(1)}s` : "-";
+          const avgSec = ab.avg_ms > 0 ? `${(ab.avg_ms / 1e3).toFixed(1)}s` : "-";
+          const models = ab.models.length > 0 ? ab.models.join(", ") : "-";
+          lines.push(`| ${ab.type} | ${ab.count} | ${totalSec} | ${models} | ${avgSec} |`);
+        }
+        if (summary.cycle_count && summary.cycle_pattern) {
+          lines.push(`> ${summary.cycle_count} ${summary.cycle_pattern} cycle(s) detected`);
+        }
+        lines.push("");
+      }
+      if (summary.skills_invoked && summary.skills_invoked.length > 0) {
+        lines.push(`### Skills Invoked`);
+        for (const skill of summary.skills_invoked) {
+          lines.push(`- ${skill}`);
+        }
+        lines.push("");
+      }
+      if (summary.skills_activated && summary.skills_activated.length > 0) {
+        lines.push(`### Skills Activated`);
+        for (const skill of summary.skills_activated) {
+          lines.push(`- ${skill}`);
+        }
+        lines.push("");
+      }
+      if (summary.hooks_fired) {
+        lines.push(`### Hooks`);
+        lines.push(`- **Hooks fired:** ${summary.hooks_fired}`);
+        lines.push("");
+      }
+      if (summary.keywords_detected && summary.keywords_detected.length > 0) {
+        lines.push(`### Keywords Detected`);
+        for (const kw of summary.keywords_detected) {
+          lines.push(`- ${kw}`);
+        }
+        lines.push("");
+      }
+      if (summary.mode_transitions && summary.mode_transitions.length > 0) {
+        lines.push(`### Mode Transitions`);
+        for (const t of summary.mode_transitions) {
+          lines.push(`- ${t.from} -> ${t.to} (at ${t.at.toFixed(1)}s)`);
+        }
+        lines.push("");
+      }
+      const flowEvents = buildExecutionFlow(readReplayEvents(root, sessionId));
+      if (flowEvents.length > 0) {
+        lines.push(`### Execution Flow`);
+        for (let i = 0; i < flowEvents.length; i++) {
+          lines.push(`${i + 1}. ${flowEvents[i]}`);
+        }
+        lines.push("");
+      }
+      const toolEntries = Object.entries(summary.tool_summary);
+      if (toolEntries.length > 0) {
+        lines.push(`### Tool Performance`);
+        lines.push("| Tool | Calls | Avg (ms) | Max (ms) | Total (ms) |");
+        lines.push("|------|-------|----------|----------|------------|");
+        for (const [tool, stats] of toolEntries.sort((a, b) => b[1].total_ms - a[1].total_ms)) {
+          lines.push(`| ${tool} | ${stats.count} | ${stats.avg_ms} | ${stats.max_ms} | ${stats.total_ms} |`);
+        }
+        lines.push("");
+      }
+      if (summary.bottlenecks.length > 0) {
+        lines.push(`### Bottlenecks (>1s avg)`);
+        for (const b of summary.bottlenecks) {
+          lines.push(`- **${b.tool}** by agent \`${b.agent}\`: avg ${b.avg_ms}ms`);
+        }
+        lines.push("");
+      }
+      if (summary.files_touched.length > 0) {
+        lines.push(`### Files Touched (${summary.files_touched.length})`);
+        for (const f of summary.files_touched.slice(0, 20)) {
+          lines.push(`- ${f}`);
+        }
+        if (summary.files_touched.length > 20) {
+          lines.push(`- ... and ${summary.files_touched.length - 20} more`);
+        }
+      }
+      return {
+        content: [{
+          type: "text",
+          text: lines.join("\n")
+        }]
+      };
+    } catch (error2) {
+      return {
+        content: [{
+          type: "text",
+          text: `Error generating summary: ${error2 instanceof Error ? error2.message : String(error2)}`
+        }]
+      };
+    }
+  }
+};
+var traceTools = [traceTimelineTool, traceSummaryTool];
+
 // src/mcp/standalone-server.ts
 var allTools = [
   ...lspTools,
@@ -22634,7 +23555,8 @@ var allTools = [
   pythonReplTool,
   ...stateTools,
   ...notepadTools,
-  ...memoryTools
+  ...memoryTools,
+  ...traceTools
 ];
 function zodToJsonSchema2(schema) {
   const rawShape = schema instanceof external_exports.ZodObject ? schema.shape : schema;

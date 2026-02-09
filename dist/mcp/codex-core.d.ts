@@ -8,13 +8,13 @@
  * This module is SDK-agnostic and contains no dependencies on @anthropic-ai/claude-agent-sdk.
  */
 import type { BackgroundJobMeta } from './prompt-persistence.js';
+import { CODEX_MODEL_FALLBACKS } from '../features/model-routing/external-model-policy.js';
 export declare function isSpawnedPid(pid: number): boolean;
 export declare function clearSpawnedPids(): void;
 export declare const CODEX_DEFAULT_MODEL: string;
 export declare const CODEX_TIMEOUT: number;
-export declare const CODEX_MODEL_FALLBACKS: string[];
-export declare const CODEX_VALID_ROLES: readonly ["architect", "planner", "critic", "analyst", "code-reviewer", "security-reviewer", "tdd-guide"];
-export declare const MAX_CONTEXT_FILES = 20;
+export { CODEX_MODEL_FALLBACKS };
+export declare const CODEX_RECOMMENDED_ROLES: readonly ["architect", "planner", "critic", "analyst", "code-reviewer", "security-reviewer", "tdd-guide"];
 export declare const MAX_FILE_SIZE: number;
 /**
  * Check if Codex JSONL output contains a model-not-found error
@@ -22,6 +22,22 @@ export declare const MAX_FILE_SIZE: number;
 export declare function isModelError(output: string): {
     isError: boolean;
     message: string;
+};
+/**
+ * Check if an error message or output indicates a rate-limit (429) error
+ * that should trigger a fallback to the next model in the chain.
+ */
+export declare function isRateLimitError(output: string, stderr?: string): {
+    isError: boolean;
+    message: string;
+};
+/**
+ * Check if an error is retryable (model error OR rate limit error)
+ */
+export declare function isRetryableError(output: string, stderr?: string): {
+    isError: boolean;
+    message: string;
+    type: 'model' | 'rate_limit' | 'none';
 };
 /**
  * Parse Codex JSONL output to extract the final text response
@@ -43,7 +59,7 @@ export declare function executeCodex(prompt: string, model: string, cwd?: string
  * Execute Codex CLI with model fallback chain
  * Only falls back on model_not_found errors when model was not explicitly provided
  */
-export declare function executeCodexWithFallback(prompt: string, model: string | undefined, cwd?: string): Promise<{
+export declare function executeCodexWithFallback(prompt: string, model: string | undefined, cwd?: string, fallbackChain?: string[]): Promise<{
     response: string;
     usedFallback: boolean;
     actualModel: string;

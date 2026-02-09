@@ -292,10 +292,21 @@ async function main() {
     }
 
     // Check for ultrawork state - only restore if session matches (issue #311)
-    const ultraworkState = readJsonFile(join(directory, '.omc', 'state', 'ultrawork-state.json'))
-      || readJsonFile(join(homedir(), '.omc', 'state', 'ultrawork-state.json'));
+    // Session-scoped ONLY when session_id exists — no legacy fallback
+    let ultraworkState = null;
+    if (sessionId && /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,255}$/.test(sessionId)) {
+      // Session-scoped ONLY — no legacy fallback
+      ultraworkState = readJsonFile(join(directory, '.omc', 'state', 'sessions', sessionId, 'ultrawork-state.json'));
+      // Validate session identity
+      if (ultraworkState && ultraworkState.session_id && ultraworkState.session_id !== sessionId) {
+        ultraworkState = null;
+      }
+    } else {
+      // No session_id — legacy behavior for backward compat
+      ultraworkState = readJsonFile(join(directory, '.omc', 'state', 'ultrawork-state.json'));
+    }
 
-    if (ultraworkState?.active && (!ultraworkState.session_id || ultraworkState.session_id === sessionId)) {
+    if (ultraworkState?.active) {
       messages.push(`<session-restore>
 
 [ULTRAWORK MODE RESTORED]
@@ -312,7 +323,22 @@ Continue working in ultrawork mode until all tasks are complete.
     }
 
     // Check for ralph loop state
-    const ralphState = readJsonFile(join(directory, '.omc', 'ralph-state.json'));
+    // Session-scoped ONLY when session_id exists — no legacy fallback
+    let ralphState = null;
+    if (sessionId && /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,255}$/.test(sessionId)) {
+      // Session-scoped ONLY — no legacy fallback
+      ralphState = readJsonFile(join(directory, '.omc', 'state', 'sessions', sessionId, 'ralph-state.json'));
+      // Validate session identity
+      if (ralphState && ralphState.session_id && ralphState.session_id !== sessionId) {
+        ralphState = null;
+      }
+    } else {
+      // No session_id — legacy behavior for backward compat
+      ralphState = readJsonFile(join(directory, '.omc', 'state', 'ralph-state.json'));
+      if (!ralphState) {
+        ralphState = readJsonFile(join(directory, '.omc', 'ralph-state.json'));
+      }
+    }
     if (ralphState?.active) {
       messages.push(`<session-restore>
 

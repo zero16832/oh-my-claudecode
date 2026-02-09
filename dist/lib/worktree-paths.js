@@ -5,12 +5,13 @@
  * ensuring all operations stay within the worktree boundary.
  */
 import { execSync } from 'child_process';
-import { existsSync, mkdirSync, realpathSync } from 'fs';
+import { existsSync, mkdirSync, realpathSync, readdirSync } from 'fs';
 import { resolve, normalize, relative, sep, join, isAbsolute } from 'path';
 /** Standard .omc subdirectories */
 export const OmcPaths = {
     ROOT: '.omc',
     STATE: '.omc/state',
+    SESSIONS: '.omc/state/sessions',
     PLANS: '.omc/plans',
     RESEARCH: '.omc/research',
     NOTEPAD: '.omc/notepad.md',
@@ -218,6 +219,133 @@ export function ensureAllOmcDirs(worktreeRoot) {
  */
 export function clearWorktreeCache() {
     worktreeCache = null;
+}
+// ============================================================================
+// SESSION-SCOPED STATE PATHS
+// ============================================================================
+/** Regex for valid session IDs: alphanumeric, hyphens, underscores, max 256 chars */
+const SESSION_ID_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,255}$/;
+// ============================================================================
+// AUTOMATIC PROCESS SESSION ID (Issue #456)
+// ============================================================================
+/**
+ * Auto-generated session ID for the current process.
+ * Uses PID + process start timestamp to be unique even if PIDs are reused.
+ * Generated once at module load time and stable for the process lifetime.
+ */
+let processSessionId = null;
+/**
+ * Get or generate a unique session ID for the current process.
+ *
+ * Format: `pid-{PID}-{startTimestamp}`
+ * Example: `pid-12345-1707350400000`
+ *
+ * This prevents concurrent Claude Code instances in the same repo from
+ * sharing state files (Issue #456). The ID is stable for the process
+ * lifetime and unique across concurrent processes.
+ *
+ * @returns A unique session ID for the current process
+ */
+export function getProcessSessionId() {
+    if (!processSessionId) {
+        // process.pid is unique among concurrent processes.
+        // Adding a timestamp handles PID reuse after process exit.
+        const pid = process.pid;
+        const startTime = Date.now();
+        processSessionId = `pid-${pid}-${startTime}`;
+    }
+    return processSessionId;
+}
+/**
+ * Reset the process session ID (for testing only).
+ * @internal
+ */
+export function resetProcessSessionId() {
+    processSessionId = null;
+}
+/**
+ * Validate a session ID to prevent path traversal attacks.
+ *
+ * @param sessionId - The session ID to validate
+ * @throws Error if session ID is invalid
+ */
+export function validateSessionId(sessionId) {
+    if (!sessionId) {
+        throw new Error('Session ID cannot be empty');
+    }
+    if (sessionId.includes('..') || sessionId.includes('/') || sessionId.includes('\\')) {
+        throw new Error(`Invalid session ID: path traversal not allowed (${sessionId})`);
+    }
+    if (!SESSION_ID_REGEX.test(sessionId)) {
+        throw new Error(`Invalid session ID: must be alphanumeric with hyphens/underscores, max 256 chars (${sessionId})`);
+    }
+}
+/**
+ * Resolve a session-scoped state file path.
+ * Path: .omc/state/sessions/{sessionId}/{mode}-state.json
+ *
+ * @param stateName - State name (e.g., "ralph", "ultrawork")
+ * @param sessionId - Session identifier
+ * @param worktreeRoot - Optional worktree root
+ * @returns Absolute path to session-scoped state file
+ */
+export function resolveSessionStatePath(stateName, sessionId, worktreeRoot) {
+    validateSessionId(sessionId);
+    // Special case: swarm uses SQLite, not session-scoped JSON
+    if (stateName === 'swarm' || stateName === 'swarm-state') {
+        throw new Error('Swarm uses SQLite (swarm.db), not session-scoped JSON state.');
+    }
+    const normalizedName = stateName.endsWith('-state') ? stateName : `${stateName}-state`;
+    return resolveOmcPath(`state/sessions/${sessionId}/${normalizedName}.json`, worktreeRoot);
+}
+/**
+ * Get the session state directory path.
+ * Path: .omc/state/sessions/{sessionId}/
+ *
+ * @param sessionId - Session identifier
+ * @param worktreeRoot - Optional worktree root
+ * @returns Absolute path to session state directory
+ */
+export function getSessionStateDir(sessionId, worktreeRoot) {
+    validateSessionId(sessionId);
+    const root = worktreeRoot || getWorktreeRoot() || process.cwd();
+    return join(root, OmcPaths.SESSIONS, sessionId);
+}
+/**
+ * List all session IDs that have state directories.
+ *
+ * @param worktreeRoot - Optional worktree root
+ * @returns Array of session IDs
+ */
+export function listSessionIds(worktreeRoot) {
+    const root = worktreeRoot || getWorktreeRoot() || process.cwd();
+    const sessionsDir = join(root, OmcPaths.SESSIONS);
+    if (!existsSync(sessionsDir)) {
+        return [];
+    }
+    try {
+        const entries = readdirSync(sessionsDir, { withFileTypes: true });
+        return entries
+            .filter(entry => entry.isDirectory() && SESSION_ID_REGEX.test(entry.name))
+            .map(entry => entry.name);
+    }
+    catch {
+        return [];
+    }
+}
+/**
+ * Ensure the session state directory exists.
+ *
+ * @param sessionId - Session identifier
+ * @param worktreeRoot - Optional worktree root
+ * @returns Absolute path to the session state directory
+ */
+export function ensureSessionStateDir(sessionId, worktreeRoot) {
+    const sessionDir = getSessionStateDir(sessionId, worktreeRoot);
+    if (!existsSync(sessionDir)) {
+        mkdirSync(sessionDir, { recursive: true });
+    }
+    return sessionDir;
 }
 /**
  * Validate that a workingDirectory is within the trusted worktree root.

@@ -7,6 +7,7 @@
  */
 import { existsSync, readFileSync, writeFileSync, mkdirSync, unlinkSync } from 'fs';
 import { join } from 'path';
+import { resolveSessionStatePath, ensureSessionStateDir } from '../../lib/worktree-paths.js';
 const _DEFAULT_STATE = {
     active: false,
     started_at: '',
@@ -17,15 +18,22 @@ const _DEFAULT_STATE = {
 /**
  * Get the state file path for Ultrawork
  */
-function getStateFilePath(directory) {
+function getStateFilePath(directory, sessionId) {
     const baseDir = directory || process.cwd();
+    if (sessionId) {
+        return resolveSessionStatePath('ultrawork', sessionId, baseDir);
+    }
     const omcDir = join(baseDir, '.omc');
     return join(omcDir, 'state', 'ultrawork-state.json');
 }
 /**
  * Ensure the .omc/state directory exists
  */
-function ensureStateDir(directory) {
+function ensureStateDir(directory, sessionId) {
+    if (sessionId) {
+        ensureSessionStateDir(sessionId, directory || process.cwd());
+        return;
+    }
     const baseDir = directory || process.cwd();
     const omcDir = join(baseDir, '.omc', 'state');
     if (!existsSync(omcDir)) {
@@ -34,8 +42,32 @@ function ensureStateDir(directory) {
 }
 /**
  * Read Ultrawork state from disk (local only)
+ *
+ * When sessionId is provided, ONLY reads session-scoped file — no legacy fallback.
+ * This prevents cross-session state leakage.
  */
-export function readUltraworkState(directory) {
+export function readUltraworkState(directory, sessionId) {
+    // When sessionId is provided, ONLY check session-scoped path — no legacy fallback.
+    if (sessionId) {
+        const sessionFile = getStateFilePath(directory, sessionId);
+        if (!existsSync(sessionFile)) {
+            return null;
+        }
+        try {
+            const content = readFileSync(sessionFile, 'utf-8');
+            const state = JSON.parse(content);
+            // Validate session identity: state must belong to this session
+            if (state.session_id && state.session_id !== sessionId) {
+                return null;
+            }
+            return state;
+        }
+        catch (error) {
+            console.error('[ultrawork] Failed to read session state file:', error);
+            return null;
+        }
+    }
+    // No sessionId: read legacy path (backward compat)
     const localStateFile = getStateFilePath(directory);
     if (existsSync(localStateFile)) {
         try {
@@ -52,10 +84,10 @@ export function readUltraworkState(directory) {
 /**
  * Write Ultrawork state to disk (local only)
  */
-export function writeUltraworkState(state, directory) {
+export function writeUltraworkState(state, directory, sessionId) {
     try {
-        ensureStateDir(directory);
-        const localStateFile = getStateFilePath(directory);
+        ensureStateDir(directory, sessionId);
+        const localStateFile = getStateFilePath(directory, sessionId);
         writeFileSync(localStateFile, JSON.stringify(state, null, 2), { mode: 0o600 });
         return true;
     }
@@ -77,35 +109,60 @@ export function activateUltrawork(prompt, sessionId, directory, linkedToRalph) {
         last_checked_at: new Date().toISOString(),
         linked_to_ralph: linkedToRalph
     };
-    return writeUltraworkState(state, directory);
+    return writeUltraworkState(state, directory, sessionId);
 }
 /**
  * Deactivate ultrawork mode
+ *
+ * When sessionId is provided:
+ * 1. Deletes the session-scoped state file
+ * 2. Cleans up ghost legacy files that belong to this session (or have no session_id)
+ *    to prevent stale legacy files from leaking into other sessions.
  */
-export function deactivateUltrawork(directory) {
-    const localStateFile = getStateFilePath(directory);
-    if (existsSync(localStateFile)) {
+export function deactivateUltrawork(directory, sessionId) {
+    let success = true;
+    // Delete session-scoped state file
+    const stateFile = getStateFilePath(directory, sessionId);
+    if (existsSync(stateFile)) {
         try {
-            unlinkSync(localStateFile);
-            return true;
+            unlinkSync(stateFile);
         }
         catch {
-            return false;
+            success = false;
         }
     }
-    return true;
+    // Ghost legacy cleanup: if sessionId provided, also remove legacy file
+    // if it belongs to this session or has no session_id (orphaned)
+    if (sessionId) {
+        const legacyFile = getStateFilePath(directory); // no sessionId = legacy path
+        if (existsSync(legacyFile)) {
+            try {
+                const content = readFileSync(legacyFile, 'utf-8');
+                const legacyState = JSON.parse(content);
+                // Only remove if it belongs to this session or is unowned (no session_id)
+                if (!legacyState.session_id || legacyState.session_id === sessionId) {
+                    unlinkSync(legacyFile);
+                }
+                // Do NOT delete another session's legacy data
+            }
+            catch {
+                // If we can't read/parse, leave it alone
+            }
+        }
+    }
+    return success;
 }
 /**
  * Increment reinforcement count (called when mode is reinforced on stop)
  */
-export function incrementReinforcement(directory) {
-    const state = readUltraworkState(directory);
+export function incrementReinforcement(directory, sessionId) {
+    const state = readUltraworkState(directory, sessionId);
     if (!state || !state.active) {
         return null;
     }
     state.reinforcement_count += 1;
     state.last_checked_at = new Date().toISOString();
-    if (writeUltraworkState(state, directory)) {
+    if (writeUltraworkState(state, directory, sessionId)) {
         return state;
     }
     return null;
@@ -114,7 +171,7 @@ export function incrementReinforcement(directory) {
  * Check if ultrawork should be reinforced (active with pending todos)
  */
 export function shouldReinforceUltrawork(sessionId, directory) {
-    const state = readUltraworkState(directory);
+    const state = readUltraworkState(directory, sessionId);
     if (!state || !state.active) {
         return false;
     }
@@ -159,10 +216,10 @@ Original task: ${state.original_prompt}
 export function createUltraworkStateHook(directory) {
     return {
         activate: (prompt, sessionId) => activateUltrawork(prompt, sessionId, directory),
-        deactivate: () => deactivateUltrawork(directory),
-        getState: () => readUltraworkState(directory),
+        deactivate: (sessionId) => deactivateUltrawork(directory, sessionId),
+        getState: (sessionId) => readUltraworkState(directory, sessionId),
         shouldReinforce: (sessionId) => shouldReinforceUltrawork(sessionId, directory),
-        incrementReinforcement: () => incrementReinforcement(directory)
+        incrementReinforcement: (sessionId) => incrementReinforcement(directory, sessionId)
     };
 }
 //# sourceMappingURL=index.js.map

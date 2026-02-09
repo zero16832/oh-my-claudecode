@@ -248,7 +248,7 @@ async function checkRalphLoop(
   directory?: string
 ): Promise<PersistentModeResult | null> {
   const workingDir = directory || process.cwd();
-  const state = readRalphState(workingDir);
+  const state = readRalphState(workingDir, sessionId);
 
   if (!state || !state.active) {
     return null;
@@ -263,9 +263,9 @@ async function checkRalphLoop(
   const prdStatus = getPrdCompletionStatus(workingDir);
   if (prdStatus.hasPrd && prdStatus.allComplete) {
     // All PRD stories complete - allow completion
-    clearRalphState(workingDir);
-    clearVerificationState(workingDir);
-    deactivateUltrawork(workingDir);
+    clearRalphState(workingDir, sessionId);
+    clearVerificationState(workingDir, sessionId);
+    deactivateUltrawork(workingDir, sessionId);
     return {
       shouldBlock: false,
       message: `[RALPH LOOP COMPLETE - PRD] All ${prdStatus.status?.total || 0} stories are complete! Great work!`,
@@ -274,7 +274,7 @@ async function checkRalphLoop(
   }
 
   // Check for existing verification state (architect verification in progress)
-  const verificationState = readVerificationState(workingDir);
+  const verificationState = readVerificationState(workingDir, sessionId);
 
   if (verificationState?.pending) {
     // Verification is in progress - check for architect's response
@@ -283,9 +283,9 @@ async function checkRalphLoop(
       if (checkArchitectApprovalInTranscript(sessionId)) {
         // Architect approved - truly complete
         // Also deactivate ultrawork if it was active alongside ralph
-        clearVerificationState(workingDir);
-        clearRalphState(workingDir);
-        deactivateUltrawork(workingDir);
+        clearVerificationState(workingDir, sessionId);
+        clearRalphState(workingDir, sessionId);
+        deactivateUltrawork(workingDir, sessionId);
         return {
           shouldBlock: false,
           message: `[RALPH LOOP VERIFIED COMPLETE] Architect verified task completion after ${state.iteration} iteration(s). Excellent work!`,
@@ -297,8 +297,8 @@ async function checkRalphLoop(
       const rejection = checkArchitectRejectionInTranscript(sessionId);
       if (rejection.rejected) {
         // Architect rejected - continue with feedback
-        recordArchitectFeedback(workingDir, false, rejection.feedback);
-        const updatedVerification = readVerificationState(workingDir);
+        recordArchitectFeedback(workingDir, false, rejection.feedback, sessionId);
+        const updatedVerification = readVerificationState(workingDir, sessionId);
 
         if (updatedVerification) {
           const continuationPrompt = getArchitectRejectionContinuationPrompt(updatedVerification);
@@ -331,9 +331,9 @@ async function checkRalphLoop(
   // Check max iterations
   if (state.iteration >= state.max_iterations) {
     // Also deactivate ultrawork if it was active alongside ralph
-    clearRalphState(workingDir);
-    clearVerificationState(workingDir);
-    deactivateUltrawork(workingDir);
+    clearRalphState(workingDir, sessionId);
+    clearVerificationState(workingDir, sessionId);
+    deactivateUltrawork(workingDir, sessionId);
     return {
       shouldBlock: false,
       message: `[RALPH LOOP STOPPED] Max iterations (${state.max_iterations}) reached without completion. Consider reviewing the task requirements.`,
@@ -346,7 +346,7 @@ async function checkRalphLoop(
   const errorGuidance = getToolErrorRetryGuidance(toolError);
 
   // Increment and continue
-  const newState = incrementRalphIteration(workingDir);
+  const newState = incrementRalphIteration(workingDir, sessionId);
   if (!newState) {
     return null;
   }
@@ -398,7 +398,7 @@ async function checkUltrawork(
   directory?: string,
   hasIncompleteTodos?: boolean
 ): Promise<PersistentModeResult | null> {
-  const state = readUltraworkState(directory);
+  const state = readUltraworkState(directory, sessionId);
 
   if (!state || !state.active) {
     return null;
@@ -411,7 +411,7 @@ async function checkUltrawork(
 
   // Reinforce ultrawork mode - ALWAYS continue while active.
   // This prevents false stops from bash errors, transient failures, etc.
-  const newState = incrementReinforcement(directory);
+  const newState = incrementReinforcement(directory, sessionId);
   if (!newState) {
     return null;
   }
@@ -541,7 +541,7 @@ export async function checkPersistentModes(
   }
 
   // Priority 1.5: Autopilot (full orchestration mode - higher than ultrawork, lower than ralph)
-  if (isAutopilotActive(workingDir)) {
+  if (isAutopilotActive(workingDir, sessionId)) {
     const autopilotResult = await checkAutopilot(sessionId, workingDir);
     if (autopilotResult?.shouldBlock) {
       return {

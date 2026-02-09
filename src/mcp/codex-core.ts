@@ -13,10 +13,16 @@ import { existsSync, mkdirSync, readFileSync, realpathSync, statSync, writeFileS
 import { dirname, resolve, relative, sep, isAbsolute, basename, join } from 'path';
 import { detectCodexCli } from './cli-detection.js';
 import { getWorktreeRoot } from '../lib/worktree-paths.js';
-import { resolveSystemPrompt, buildPromptWithSystemContext } from './prompt-injection.js';
+import { resolveSystemPrompt, buildPromptWithSystemContext, VALID_AGENT_ROLES } from './prompt-injection.js';
 import { persistPrompt, persistResponse, getExpectedResponsePath } from './prompt-persistence.js';
 import { writeJobStatus, getStatusFilePath, readJobStatus } from './prompt-persistence.js';
 import type { JobStatus, BackgroundJobMeta } from './prompt-persistence.js';
+import {
+  resolveExternalModel,
+  buildFallbackChain,
+  CODEX_MODEL_FALLBACKS,
+} from '../features/model-routing/external-model-policy.js';
+import { loadConfig } from '../config/loader.js';
 
 // Module-scoped PID registry - tracks PIDs spawned by this process
 const spawnedPids = new Set<number>();
@@ -42,18 +48,12 @@ function validateModelName(model: string): void {
 export const CODEX_DEFAULT_MODEL = process.env.OMC_CODEX_DEFAULT_MODEL || 'gpt-5.3-codex';
 export const CODEX_TIMEOUT = Math.min(Math.max(5000, parseInt(process.env.OMC_CODEX_TIMEOUT || '3600000', 10) || 3600000), 3600000);
 
-// Model fallback chain: try each in order if previous fails with model_not_found
-export const CODEX_MODEL_FALLBACKS = [
-  'gpt-5.3-codex',
-  'gpt-5.3',
-  'gpt-5.2-codex',
-  'gpt-5.2',
-];
+// Re-export CODEX_MODEL_FALLBACKS for backward compatibility
+export { CODEX_MODEL_FALLBACKS };
 
-// Codex is best for analytical/planning tasks
-export const CODEX_VALID_ROLES = ['architect', 'planner', 'critic', 'analyst', 'code-reviewer', 'security-reviewer', 'tdd-guide'] as const;
+// Codex is best for analytical/planning tasks (recommended, not enforced)
+export const CODEX_RECOMMENDED_ROLES = ['architect', 'planner', 'critic', 'analyst', 'code-reviewer', 'security-reviewer', 'tdd-guide'] as const;
 
-export const MAX_CONTEXT_FILES = 20;
 export const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB per file
 
 /**
@@ -74,6 +74,49 @@ export function isModelError(output: string): { isError: boolean; message: strin
     } catch { /* skip non-JSON lines */ }
   }
   return { isError: false, message: '' };
+}
+
+/**
+ * Check if an error message or output indicates a rate-limit (429) error
+ * that should trigger a fallback to the next model in the chain.
+ */
+export function isRateLimitError(output: string, stderr: string = ''): { isError: boolean; message: string } {
+  const combined = `${output}\n${stderr}`;
+  // Check for 429 status codes and rate limit messages in both stdout and stderr
+  if (/429|rate.?limit|too many requests|quota.?exceeded|resource.?exhausted/i.test(combined)) {
+    // Extract a meaningful message
+    const lines = combined.split('\n').filter(l => l.trim());
+    for (const line of lines) {
+      try {
+        const event = JSON.parse(line);
+        const msg = typeof event.message === 'string' ? event.message :
+                    typeof event.error?.message === 'string' ? event.error.message : '';
+        if (/429|rate.?limit|too many requests|quota.?exceeded|resource.?exhausted/i.test(msg)) {
+          return { isError: true, message: msg };
+        }
+      } catch { /* check raw line */ }
+      if (/429|rate.?limit|too many requests|quota.?exceeded|resource.?exhausted/i.test(line)) {
+        return { isError: true, message: line.trim() };
+      }
+    }
+    return { isError: true, message: 'Rate limit error detected' };
+  }
+  return { isError: false, message: '' };
+}
+
+/**
+ * Check if an error is retryable (model error OR rate limit error)
+ */
+export function isRetryableError(output: string, stderr: string = ''): { isError: boolean; message: string; type: 'model' | 'rate_limit' | 'none' } {
+  const modelErr = isModelError(output);
+  if (modelErr.isError) {
+    return { isError: true, message: modelErr.message, type: 'model' };
+  }
+  const rateErr = isRateLimitError(output, stderr);
+  if (rateErr.isError) {
+    return { isError: true, message: rateErr.message, type: 'rate_limit' };
+  }
+  return { isError: false, message: '', type: 'none' };
 }
 
 /**
@@ -170,14 +213,20 @@ export function executeCodex(prompt: string, model: string, cwd?: string): Promi
         settled = true;
         clearTimeout(timeoutHandle);
         if (code === 0 || stdout.trim()) {
-          const modelErr = isModelError(stdout);
-          if (modelErr.isError) {
-            reject(new Error(`Codex model error: ${modelErr.message}`));
+          const retryable = isRetryableError(stdout, stderr);
+          if (retryable.isError) {
+            reject(new Error(`Codex ${retryable.type === 'rate_limit' ? 'rate limit' : 'model'} error: ${retryable.message}`));
           } else {
             resolve(parseCodexOutput(stdout));
           }
         } else {
-          reject(new Error(`Codex exited with code ${code}: ${stderr || 'No output'}`));
+          // Check stderr for rate limit errors before generic failure
+          const retryableExit = isRateLimitError(stderr, stdout);
+          if (retryableExit.isError) {
+            reject(new Error(`Codex rate limit error: ${retryableExit.message}`));
+          } else {
+            reject(new Error(`Codex exited with code ${code}: ${stderr || 'No output'}`));
+          }
         }
       }
     });
@@ -212,7 +261,8 @@ export function executeCodex(prompt: string, model: string, cwd?: string): Promi
 export async function executeCodexWithFallback(
   prompt: string,
   model: string | undefined,
-  cwd?: string
+  cwd?: string,
+  fallbackChain?: string[]
 ): Promise<{ response: string; usedFallback: boolean; actualModel: string }> {
   const modelExplicit = model !== undefined && model !== null && model !== '';
   const effectiveModel = model || CODEX_DEFAULT_MODEL;
@@ -223,10 +273,11 @@ export async function executeCodexWithFallback(
     return { response, usedFallback: false, actualModel: effectiveModel };
   }
 
-  // Try fallback chain
-  const modelsToTry = CODEX_MODEL_FALLBACKS.includes(effectiveModel)
-    ? CODEX_MODEL_FALLBACKS.slice(CODEX_MODEL_FALLBACKS.indexOf(effectiveModel))
-    : [effectiveModel, ...CODEX_MODEL_FALLBACKS];
+  // Use provided fallback chain or build from defaults
+  const chain = fallbackChain || CODEX_MODEL_FALLBACKS;
+  const modelsToTry = chain.includes(effectiveModel)
+    ? chain.slice(chain.indexOf(effectiveModel))
+    : [effectiveModel, ...chain];
 
   let lastError: Error | null = null;
   for (const tryModel of modelsToTry) {
@@ -239,9 +290,9 @@ export async function executeCodexWithFallback(
       };
     } catch (err) {
       lastError = err as Error;
-      // Only retry on model errors
-      if (!/model error|model_not_found|model is not supported/i.test(lastError.message)) {
-        throw lastError; // Non-model error, don't retry
+      // Retry on model errors and rate limit errors
+      if (!/model error|model_not_found|model is not supported|429|rate.?limit|too many requests|quota.?exceeded|resource.?exhausted/i.test(lastError.message)) {
+        throw lastError; // Non-retryable error, don't retry
       }
       // Continue to next model in chain
     }
@@ -361,9 +412,9 @@ export function executeCodexBackground(
         }
 
         if (code === 0 || stdout.trim()) {
-          // Check for model errors and retry with fallback if available
-          const modelErr = isModelError(stdout);
-          if (modelErr.isError && remainingModels.length > 0) {
+          // Check for retryable errors (model errors + rate limit/429 errors)
+          const retryableErr = isRetryableError(stdout, stderr);
+          if (retryableErr.isError && remainingModels.length > 0) {
             // Retry with next model in chain
             const nextModel = remainingModels[0];
             const newRemainingModels = remainingModels.slice(1);
@@ -379,13 +430,13 @@ export function executeCodexBackground(
             }
             return;
           }
-          if (modelErr.isError) {
+          if (retryableErr.isError) {
             // No remaining models and current model errored
             writeJobStatus({
               ...initialStatus,
               status: 'failed',
               completedAt: new Date().toISOString(),
-              error: `All models in fallback chain failed. Last error: ${modelErr.message}`,
+              error: `All models in fallback chain failed. Last error (${retryableErr.type}): ${retryableErr.message}`,
             }, workingDirectory);
             return;
           }
@@ -412,6 +463,22 @@ export function executeCodexBackground(
             fallbackModel: usedFallback ? tryModel : undefined,
           }, workingDirectory);
         } else {
+          // Check if the failure is a retryable error (429/rate limit) before giving up
+          const retryableExit = isRetryableError(stderr, stdout);
+          if (retryableExit.isError && remainingModels.length > 0) {
+            const nextModel = remainingModels[0];
+            const newRemainingModels = remainingModels.slice(1);
+            const retryResult = trySpawnWithModel(nextModel, newRemainingModels);
+            if ('error' in retryResult) {
+              writeJobStatus({
+                ...initialStatus,
+                status: 'failed',
+                completedAt: new Date().toISOString(),
+                error: `Fallback spawn failed for model ${nextModel}: ${retryResult.error}`,
+              }, workingDirectory);
+            }
+            return;
+          }
           writeJobStatus({
             ...initialStatus,
             status: 'failed',
@@ -497,7 +564,20 @@ export async function handleAskCodex(args: {
   background?: boolean;
   working_directory?: string;
 }): Promise<{ content: Array<{ type: 'text'; text: string }>; isError?: boolean }> {
-  const { agent_role, model = CODEX_DEFAULT_MODEL, context_files } = args;
+  const { agent_role, context_files } = args;
+
+  // Resolve model based on configuration and agent role
+  const config = loadConfig();
+  const resolved = resolveExternalModel(config.externalModels, {
+    agentRole: args.agent_role,
+    explicitModel: args.model,  // user explicitly passed model
+  });
+
+  // Build fallback chain with resolved model as first candidate
+  const fallbackChain = buildFallbackChain('codex', resolved.model, config.externalModels);
+
+  // Use resolved model (with env var fallback for backward compatibility)
+  const model = resolved.model || CODEX_DEFAULT_MODEL;
 
   // Derive baseDir from working_directory if provided
   let baseDir = args.working_directory || process.cwd();
@@ -535,12 +615,21 @@ export async function handleAskCodex(args: {
   }
 
 
-  // Validate agent_role
-  if (!agent_role || !(CODEX_VALID_ROLES as readonly string[]).includes(agent_role)) {
+  // Validate agent_role against the shared allowed agents list
+  if (!agent_role || !agent_role.trim()) {
     return {
       content: [{
         type: 'text' as const,
-        text: `Invalid agent_role: "${agent_role}". Codex requires one of: ${CODEX_VALID_ROLES.join(', ')}`
+        text: `agent_role is required. Recommended roles for Codex: ${CODEX_RECOMMENDED_ROLES.join(', ')}`
+      }],
+      isError: true
+    };
+  }
+  if (!(VALID_AGENT_ROLES as readonly string[]).includes(agent_role)) {
+    return {
+      content: [{
+        type: 'text' as const,
+        text: `Invalid agent_role: "${agent_role}". Must be one of: ${VALID_AGENT_ROLES.join(', ')}. Recommended for Codex: ${CODEX_RECOMMENDED_ROLES.join(', ')}`
       }],
       isError: true
     };
@@ -615,16 +704,10 @@ export async function handleAskCodex(args: {
     };
   }
 
-  // If output_file specified, nudge the CLI to write a work summary there
-  let userPrompt = resolvedPrompt;
-  if (args.output_file) {
-    const outputPath = resolve(baseDir, args.output_file);
-    userPrompt = `IMPORTANT: After completing the task, write a WORK SUMMARY to: ${outputPath}
-Include: what was done, files modified/created, key decisions made, and any issues encountered.
-The summary is for the orchestrator to understand what changed - actual work products should be created directly.
+  // Add headless execution context so Codex produces comprehensive output
+  const userPrompt = `[HEADLESS SESSION] You are running non-interactively in a headless pipeline. Produce your FULL, comprehensive analysis directly in your response. Do NOT ask for clarification or confirmation - work thoroughly with all provided context. Do NOT write brief acknowledgments - your response IS the deliverable.
 
 ${resolvedPrompt}`;
-  }
 
   // Check CLI availability
   const detection = detectCodexCli();
@@ -644,15 +727,6 @@ ${resolvedPrompt}`;
   // Build file context
   let fileContext: string | undefined;
   if (context_files && context_files.length > 0) {
-    if (context_files.length > MAX_CONTEXT_FILES) {
-      return {
-        content: [{
-          type: 'text' as const,
-          text: `Too many context files (max ${MAX_CONTEXT_FILES}, got ${context_files.length})`
-        }],
-        isError: true
-      };
-    }
     fileContext = context_files.map(f => validateAndReadFile(f, baseDir)).join('\n\n');
   }
 
@@ -729,20 +803,8 @@ ${resolvedPrompt}`;
     expectedResponsePath ? `**Response File:** ${expectedResponsePath}` : null,
   ].filter(Boolean).join('\n');
 
-  // Record output_file mtime before execution so we can detect if CLI wrote to it
-  let outputFileMtimeBefore: number | null = null;
-  let resolvedOutputPath: string | undefined;
-  if (args.output_file) {
-    resolvedOutputPath = resolve(baseDirReal, args.output_file);
-    try {
-      outputFileMtimeBefore = statSync(resolvedOutputPath).mtimeMs;
-    } catch {
-      outputFileMtimeBefore = null; // File doesn't exist yet
-    }
-  }
-
   try {
-    const { response, usedFallback, actualModel } = await executeCodexWithFallback(fullPrompt, args.model as string | undefined, baseDir);
+    const { response, usedFallback, actualModel } = await executeCodexWithFallback(fullPrompt, args.model as string | undefined, baseDir, fallbackChain);
 
     // Persist response to disk (audit trail)
     if (promptResult) {
@@ -759,60 +821,46 @@ ${resolvedPrompt}`;
       });
     }
 
-    // Handle output_file: only write if CLI didn't already write to it
-    // Codex with --full-auto can write to the output_file via shell commands.
-    // If it did, we should NOT overwrite with parsed stdout.
-    if (args.output_file && resolvedOutputPath) {
-      let cliWroteFile = false;
-      try {
-        const currentMtime = statSync(resolvedOutputPath).mtimeMs;
-        cliWroteFile = outputFileMtimeBefore !== null
-          ? currentMtime > outputFileMtimeBefore
-          : true; // File was created during execution
-      } catch {
-        cliWroteFile = false; // File still doesn't exist
-      }
-
-      if (cliWroteFile) {
-        // CLI already wrote the output file - don't overwrite
+    // Always write parsed JSONL response to output_file.
+    // We no longer use -o (--output-last-message) because it only captures the
+    // last agent message, which may be a brief acknowledgment. The JSONL-parsed
+    // stdout contains ALL agent messages and is always more comprehensive.
+    if (args.output_file) {
+      const outputPath = resolve(baseDirReal, args.output_file);
+      const relOutput = relative(baseDirReal, outputPath);
+      if (relOutput.startsWith('..') || isAbsolute(relOutput)) {
+        console.warn(`[codex-core] output_file '${args.output_file}' resolves outside working directory, skipping write.`);
       } else {
-        // CLI didn't write the file, write parsed response ourselves
-        const outputPath = resolvedOutputPath;
-        const relOutput = relative(baseDirReal, outputPath);
-        if (relOutput.startsWith('..') || isAbsolute(relOutput)) {
-          console.warn(`[codex-core] output_file '${args.output_file}' resolves outside working directory, skipping write.`);
-        } else {
-          try {
-            const outputDir = dirname(outputPath);
+        try {
+          const outputDir = dirname(outputPath);
 
-            if (!existsSync(outputDir)) {
-              const relDir = relative(baseDirReal, outputDir);
-              if (relDir.startsWith('..') || isAbsolute(relDir)) {
-                console.warn(`[codex-core] output_file directory is outside working directory, skipping write.`);
-              } else {
-                mkdirSync(outputDir, { recursive: true });
-              }
+          if (!existsSync(outputDir)) {
+            const relDir = relative(baseDirReal, outputDir);
+            if (relDir.startsWith('..') || isAbsolute(relDir)) {
+              console.warn(`[codex-core] output_file directory is outside working directory, skipping write.`);
+            } else {
+              mkdirSync(outputDir, { recursive: true });
             }
-
-            let outputDirReal: string | undefined;
-            try {
-              outputDirReal = realpathSync(outputDir);
-            } catch {
-              console.warn(`[codex-core] Failed to resolve output directory, skipping write.`);
-            }
-
-            if (outputDirReal) {
-              const relDirReal = relative(baseDirReal, outputDirReal);
-              if (relDirReal.startsWith('..') || isAbsolute(relDirReal)) {
-                console.warn(`[codex-core] output_file directory resolves outside working directory, skipping write.`);
-              } else {
-                const safePath = join(outputDirReal, basename(outputPath));
-                writeFileSync(safePath, response, 'utf-8');
-              }
-            }
-          } catch (err) {
-            console.warn(`[codex-core] Failed to write output file: ${(err as Error).message}`);
           }
+
+          let outputDirReal: string | undefined;
+          try {
+            outputDirReal = realpathSync(outputDir);
+          } catch {
+            console.warn(`[codex-core] Failed to resolve output directory, skipping write.`);
+          }
+
+          if (outputDirReal) {
+            const relDirReal = relative(baseDirReal, outputDirReal);
+            if (relDirReal.startsWith('..') || isAbsolute(relDirReal)) {
+              console.warn(`[codex-core] output_file directory resolves outside working directory, skipping write.`);
+            } else {
+              const safePath = join(outputDirReal, basename(outputPath));
+              writeFileSync(safePath, response, 'utf-8');
+            }
+          }
+        } catch (err) {
+          console.warn(`[codex-core] Failed to write output file: ${(err as Error).message}`);
         }
       }
     }

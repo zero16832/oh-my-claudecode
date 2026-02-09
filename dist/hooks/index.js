@@ -62,7 +62,7 @@ readMessages as readRecoveryMessages, readParts as readRecoveryParts, findEmptyM
 TOKEN_LIMIT_PATTERNS, TOKEN_LIMIT_KEYWORDS, CONTEXT_LIMIT_RECOVERY_MESSAGE, CONTEXT_LIMIT_SHORT_MESSAGE, NON_EMPTY_CONTENT_RECOVERY_MESSAGE, TRUNCATION_APPLIED_MESSAGE, RECOVERY_FAILED_MESSAGE, EDIT_ERROR_PATTERNS, EDIT_ERROR_REMINDER, RETRY_CONFIG, TRUNCATE_CONFIG, RECOVERY_MESSAGES, PLACEHOLDER_TEXT as RECOVERY_PLACEHOLDER_TEXT } from './recovery/index.js';
 export { 
 // Preemptive Compaction
-createPreemptiveCompactionHook, estimateTokens, analyzeContextUsage, getSessionTokenEstimate, resetSessionTokenEstimate, DEFAULT_THRESHOLD as PREEMPTIVE_DEFAULT_THRESHOLD, CRITICAL_THRESHOLD, COMPACTION_COOLDOWN_MS, MAX_WARNINGS, CLAUDE_DEFAULT_CONTEXT_LIMIT, CHARS_PER_TOKEN, CONTEXT_WARNING_MESSAGE, CONTEXT_CRITICAL_MESSAGE } from './preemptive-compaction/index.js';
+createPreemptiveCompactionHook, estimateTokens, analyzeContextUsage, getSessionTokenEstimate, resetSessionTokenEstimate, clearRapidFireDebounce, RAPID_FIRE_DEBOUNCE_MS, DEFAULT_THRESHOLD as PREEMPTIVE_DEFAULT_THRESHOLD, CRITICAL_THRESHOLD, COMPACTION_COOLDOWN_MS, MAX_WARNINGS, CLAUDE_DEFAULT_CONTEXT_LIMIT, CHARS_PER_TOKEN, CONTEXT_WARNING_MESSAGE, CONTEXT_CRITICAL_MESSAGE } from './preemptive-compaction/index.js';
 export { 
 // Background Notification
 createBackgroundNotificationHook, processBackgroundNotification, processBackgroundNotificationHook, checkBackgroundNotifications, handleBackgroundEvent, HOOK_NAME as BACKGROUND_NOTIFICATION_HOOK_NAME } from './background-notification/index.js';
@@ -114,9 +114,6 @@ export { MODE_CONFIGS, getStateDir, ensureStateDir as ensureModeStateDir, getSta
 // Additional functions from PR #111
 isModeActive, getActiveExclusiveMode, canStartMode, getAllModeStatuses, createModeMarker, removeModeMarker, readModeMarker } from './mode-registry/index.js';
 export { 
-// Swarm Coordination
-startSwarm, stopSwarm, getSwarmStatus, getSwarmStats, claimTask, releaseTask, completeTask, failTask, heartbeat, cleanupStaleClaims, hasPendingWork, isSwarmComplete, getActiveAgents, getAllTasks, getTasksWithStatus, getTaskById, getAgentTasks, getAllHeartbeats, retryTask, isSwarmReady, connectToSwarm, disconnectFromSwarm, isSwarmActive, cancelSwarm, DEFAULT_SWARM_CONFIG } from './swarm/index.js';
-export { 
 // Setup Hook
 ensureDirectoryStructure, validateConfigFiles, setEnvironmentVariables, processSetupInit, pruneOldStateFiles, cleanupOrphanedState, vacuumSwarmDb, processSetupMaintenance, processSetup } from './setup/index.js';
 export { 
@@ -127,7 +124,7 @@ export {
 processSubagentStart, processSubagentStop, handleSubagentStart, handleSubagentStop, readTrackingState, writeTrackingState, getStateFilePath as getSubagentStateFilePath, getStaleAgents, cleanupStaleAgents, getActiveAgentCount, getAgentsByType, getRunningAgents, getTrackingStats, clearTrackingState } from './subagent-tracker/index.js';
 export { 
 // PreCompact Hook
-processPreCompact, getCheckpointPath, exportWisdomToNotepad, saveModeSummary, createCompactCheckpoint, formatCompactSummary as formatPreCompactSummary } from './pre-compact/index.js';
+processPreCompact, getCheckpointPath, exportWisdomToNotepad, saveModeSummary, createCompactCheckpoint, formatCompactSummary as formatPreCompactSummary, isCompactionInProgress, getCompactionQueueDepth } from './pre-compact/index.js';
 export { 
 // Permission Handler Hook
 processPermissionRequest, handlePermissionRequest, isSafeCommand, isActiveModeRunning } from './permission-handler/index.js';
@@ -137,4 +134,7 @@ processSessionEnd, handleSessionEnd, recordSessionMetrics, cleanupTransientState
 export { 
 // Project Memory Hook
 registerProjectMemoryContext, clearProjectMemorySession, rescanProjectEnvironment, loadProjectMemory, saveProjectMemory, detectProjectEnvironment, formatContextSummary, formatFullContext, learnFromToolOutput, addCustomNote, processPreCompact as processProjectMemoryPreCompact, mapDirectoryStructure, updateDirectoryAccess, trackAccess, getTopHotPaths, decayHotPaths, detectDirectivesFromMessage, addDirective, formatDirectivesForContext } from './project-memory/index.js';
+export { 
+// Flow Tracer (Agent Flow Trace Recording)
+recordHookFire, recordHookResult, recordKeywordDetected, recordSkillActivated, recordSkillInvoked, recordModeChange, } from './subagent-tracker/flow-tracer.js';
 //# sourceMappingURL=index.js.map

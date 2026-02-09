@@ -8,6 +8,7 @@
 export declare const OmcPaths: {
     readonly ROOT: ".omc";
     readonly STATE: ".omc/state";
+    readonly SESSIONS: ".omc/state/sessions";
     readonly PLANS: ".omc/plans";
     readonly RESEARCH: ".omc/research";
     readonly NOTEPAD: ".omc/notepad.md";
@@ -109,6 +110,65 @@ export declare function ensureAllOmcDirs(worktreeRoot?: string): void;
  * Clear the worktree cache (useful for testing).
  */
 export declare function clearWorktreeCache(): void;
+/**
+ * Get or generate a unique session ID for the current process.
+ *
+ * Format: `pid-{PID}-{startTimestamp}`
+ * Example: `pid-12345-1707350400000`
+ *
+ * This prevents concurrent Claude Code instances in the same repo from
+ * sharing state files (Issue #456). The ID is stable for the process
+ * lifetime and unique across concurrent processes.
+ *
+ * @returns A unique session ID for the current process
+ */
+export declare function getProcessSessionId(): string;
+/**
+ * Reset the process session ID (for testing only).
+ * @internal
+ */
+export declare function resetProcessSessionId(): void;
+/**
+ * Validate a session ID to prevent path traversal attacks.
+ *
+ * @param sessionId - The session ID to validate
+ * @throws Error if session ID is invalid
+ */
+export declare function validateSessionId(sessionId: string): void;
+/**
+ * Resolve a session-scoped state file path.
+ * Path: .omc/state/sessions/{sessionId}/{mode}-state.json
+ *
+ * @param stateName - State name (e.g., "ralph", "ultrawork")
+ * @param sessionId - Session identifier
+ * @param worktreeRoot - Optional worktree root
+ * @returns Absolute path to session-scoped state file
+ */
+export declare function resolveSessionStatePath(stateName: string, sessionId: string, worktreeRoot?: string): string;
+/**
+ * Get the session state directory path.
+ * Path: .omc/state/sessions/{sessionId}/
+ *
+ * @param sessionId - Session identifier
+ * @param worktreeRoot - Optional worktree root
+ * @returns Absolute path to session state directory
+ */
+export declare function getSessionStateDir(sessionId: string, worktreeRoot?: string): string;
+/**
+ * List all session IDs that have state directories.
+ *
+ * @param worktreeRoot - Optional worktree root
+ * @returns Array of session IDs
+ */
+export declare function listSessionIds(worktreeRoot?: string): string[];
+/**
+ * Ensure the session state directory exists.
+ *
+ * @param sessionId - Session identifier
+ * @param worktreeRoot - Optional worktree root
+ * @returns Absolute path to the session state directory
+ */
+export declare function ensureSessionStateDir(sessionId: string, worktreeRoot?: string): string;
 /**
  * Validate that a workingDirectory is within the trusted worktree root.
  * The trusted root is derived from process.cwd(), NOT from user input.
