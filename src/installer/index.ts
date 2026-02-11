@@ -19,6 +19,7 @@ import {
   isWindows,
   MIN_NODE_VERSION
 } from './hooks.js';
+import { getRuntimePackageVersion } from '../lib/version.js';
 
 /** Claude Code configuration directory */
 export const CLAUDE_CONFIG_DIR = join(homedir(), '.claude');
@@ -38,7 +39,7 @@ export const VERSION_FILE = join(CLAUDE_CONFIG_DIR, '.omc-version.json');
 export const CORE_COMMANDS: string[] = [];
 
 /** Current version */
-export const VERSION = '4.1.3';
+export const VERSION = getRuntimePackageVersion();
 
 /**
  * Find a marker that appears at the start of a line (line-anchored).
@@ -86,6 +87,7 @@ export interface InstallOptions {
   verbose?: boolean;
   skipClaudeCheck?: boolean;
   forceHooks?: boolean;
+  refreshHooksInPlugin?: boolean;
 }
 
 /**
@@ -183,14 +185,28 @@ export function isProjectScopedPlugin(): boolean {
 }
 
 /**
- * Get the package root directory
- * From dist/installer/index.js, go up to package root
+ * Get the package root directory.
+ * Works for both ESM (dist/installer/) and CJS bundles (bridge/).
+ * When esbuild bundles to CJS, import.meta is replaced with {} so we
+ * fall back to __dirname which is natively available in CJS.
  */
 function getPackageDir(): string {
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = dirname(__filename);
-  // From dist/installer/index.js, go up to package root
-  return join(__dirname, '..', '..');
+  try {
+    if (import.meta?.url) {
+      const __filename = fileURLToPath(import.meta.url);
+      const __dirname = dirname(__filename);
+      // From dist/installer/index.js, go up to package root
+      return join(__dirname, '..', '..');
+    }
+  } catch {
+    // import.meta.url unavailable — fall through to CJS path
+  }
+  // CJS bundle path: from bridge/ go up 1 level to package root
+  // eslint-disable-next-line no-undef
+  if (typeof __dirname !== 'undefined') {
+    return join(__dirname, '..');
+  }
+  return process.cwd();
 }
 
 /**
@@ -339,6 +355,7 @@ export function install(options: InstallOptions = {}): InstallResult {
   // Check if running as a plugin
   const runningAsPlugin = isRunningAsPlugin();
   const projectScoped = isProjectScopedPlugin();
+  const allowPluginHookRefresh = runningAsPlugin && options.refreshHooksInPlugin && !projectScoped;
   if (runningAsPlugin) {
     log('Detected Claude Code plugin context - skipping agent/command file installation');
     log('Plugin files are managed by Claude Code plugin system');
@@ -346,6 +363,9 @@ export function install(options: InstallOptions = {}): InstallResult {
       log('Detected project-scoped plugin - skipping global HUD/settings modifications');
     } else {
       log('Will still install HUD statusline...');
+      if (allowPluginHookRefresh) {
+        log('Will refresh global hooks/settings for plugin runtime reconciliation');
+      }
     }
     // Don't return early - continue to install HUD (unless project-scoped)
   }
@@ -494,6 +514,25 @@ export function install(options: InstallOptions = {}): InstallResult {
 
       // Note: hooks configuration is deferred to consolidated settings.json write below
       result.hooksConfigured = true; // Will be set properly after consolidated write
+    } else if (allowPluginHookRefresh) {
+      // Refresh hooks in plugin context when explicitly requested (global plugin only)
+      log('Refreshing hook scripts for plugin reconciliation...');
+      if (!existsSync(HOOKS_DIR)) {
+        mkdirSync(HOOKS_DIR, { recursive: true });
+      }
+      const hookScripts = getHookScripts();
+      for (const [filename, content] of Object.entries(hookScripts)) {
+        const filepath = join(HOOKS_DIR, filename);
+        const dir = dirname(filepath);
+        if (!existsSync(dir)) {
+          mkdirSync(dir, { recursive: true });
+        }
+        writeFileSync(filepath, content);
+        if (!isWindows()) {
+          chmodSync(filepath, 0o755);
+        }
+      }
+      result.hooksConfigured = true;
     } else {
       log('Skipping agent/command/hook files (managed by plugin system)');
     }
@@ -626,8 +665,8 @@ export function install(options: InstallOptions = {}): InstallResult {
         existingSettings = JSON.parse(settingsContent);
       }
 
-      // 1. Configure hooks (only if not running as plugin)
-      if (!runningAsPlugin) {
+      // 1. Configure hooks (only if not running as plugin unless refresh requested)
+      if (!runningAsPlugin || allowPluginHookRefresh) {
         const existingHooks = (existingSettings.hooks || {}) as Record<string, unknown>;
         const hooksConfig = getHooksSettingsConfig();
         const newHooks = hooksConfig.hooks;
@@ -654,7 +693,9 @@ export function install(options: InstallOptions = {}): InstallResult {
               if (hasNonOmcHook) break;
             }
 
-            if (hasNonOmcHook && !options.forceHooks) {
+            const canOverrideNonOmc = options.forceHooks && !allowPluginHookRefresh;
+
+            if (hasNonOmcHook && !canOverrideNonOmc) {
               // Conflict detected - don't overwrite
               log(`  [OMC] Warning: ${eventType} hook owned by another plugin. Skipping. Use --force-hooks to override.`);
               result.hookConflicts.push({ eventType, existingCommand: nonOmcCommand });

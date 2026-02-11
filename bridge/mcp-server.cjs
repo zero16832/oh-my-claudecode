@@ -18343,8 +18343,16 @@ ${content}`;
     });
   }
 };
+var IDLE_TIMEOUT_MS = 5 * 60 * 1e3;
+var IDLE_CHECK_INTERVAL_MS = 60 * 1e3;
 var LspClientManager = class {
   clients = /* @__PURE__ */ new Map();
+  lastUsed = /* @__PURE__ */ new Map();
+  inFlightCount = /* @__PURE__ */ new Map();
+  idleTimer = null;
+  constructor() {
+    this.startIdleCheck();
+  }
   /**
    * Get or create a client for a file
    */
@@ -18365,7 +18373,44 @@ var LspClientManager = class {
         throw error2;
       }
     }
+    this.lastUsed.set(key, Date.now());
     return client;
+  }
+  /**
+   * Run a function with in-flight tracking for the client serving filePath.
+   * While the function is running, the client is protected from idle eviction.
+   * The lastUsed timestamp is refreshed on both entry and exit.
+   */
+  async runWithClientLease(filePath, fn) {
+    const serverConfig = getServerForFile(filePath);
+    if (!serverConfig) {
+      throw new Error(`No language server available for: ${filePath}`);
+    }
+    const workspaceRoot = this.findWorkspaceRoot(filePath);
+    const key = `${workspaceRoot}:${serverConfig.command}`;
+    let client = this.clients.get(key);
+    if (!client) {
+      client = new LspClient(workspaceRoot, serverConfig);
+      try {
+        await client.connect();
+        this.clients.set(key, client);
+      } catch (error2) {
+        throw error2;
+      }
+    }
+    this.lastUsed.set(key, Date.now());
+    this.inFlightCount.set(key, (this.inFlightCount.get(key) || 0) + 1);
+    try {
+      return await fn(client);
+    } finally {
+      const count = (this.inFlightCount.get(key) || 1) - 1;
+      if (count <= 0) {
+        this.inFlightCount.delete(key);
+      } else {
+        this.inFlightCount.set(key, count);
+      }
+      this.lastUsed.set(key, Date.now());
+    }
   }
   /**
    * Find the workspace root for a file
@@ -18389,13 +18434,75 @@ var LspClientManager = class {
     return (0, import_path2.dirname)((0, import_path2.resolve)(filePath));
   }
   /**
-   * Disconnect all clients
+   * Start periodic idle check
+   */
+  startIdleCheck() {
+    if (this.idleTimer) return;
+    this.idleTimer = setInterval(() => {
+      this.evictIdleClients();
+    }, IDLE_CHECK_INTERVAL_MS);
+    if (this.idleTimer && typeof this.idleTimer === "object" && "unref" in this.idleTimer) {
+      this.idleTimer.unref();
+    }
+  }
+  /**
+   * Evict clients that haven't been used within IDLE_TIMEOUT_MS.
+   * Clients with in-flight requests are never evicted.
+   */
+  evictIdleClients() {
+    const now = Date.now();
+    for (const [key, lastUsedTime] of this.lastUsed.entries()) {
+      if (now - lastUsedTime > IDLE_TIMEOUT_MS) {
+        if ((this.inFlightCount.get(key) || 0) > 0) {
+          continue;
+        }
+        const client = this.clients.get(key);
+        if (client) {
+          client.disconnect().catch(() => {
+          });
+          this.clients.delete(key);
+          this.lastUsed.delete(key);
+          this.inFlightCount.delete(key);
+        }
+      }
+    }
+  }
+  /**
+   * Disconnect all clients and stop idle checking.
+   * Uses Promise.allSettled so one failing disconnect doesn't block others.
+   * Maps are always cleared regardless of individual disconnect failures.
    */
   async disconnectAll() {
-    for (const client of this.clients.values()) {
-      await client.disconnect();
+    if (this.idleTimer) {
+      clearInterval(this.idleTimer);
+      this.idleTimer = null;
+    }
+    const entries = Array.from(this.clients.entries());
+    const results = await Promise.allSettled(
+      entries.map(([, client]) => client.disconnect())
+    );
+    for (let i = 0; i < results.length; i++) {
+      const result = results[i];
+      if (result.status === "rejected") {
+        const key = entries[i][0];
+        console.warn(`LSP disconnectAll: failed to disconnect client "${key}": ${result.reason}`);
+      }
     }
     this.clients.clear();
+    this.lastUsed.clear();
+    this.inFlightCount.clear();
+  }
+  /** Expose in-flight count for testing */
+  getInFlightCount(key) {
+    return this.inFlightCount.get(key) || 0;
+  }
+  /** Expose client count for testing */
+  get clientCount() {
+    return this.clients.size;
+  }
+  /** Trigger idle eviction manually (exposed for testing) */
+  triggerEviction() {
+    this.evictIdleClients();
   }
 };
 var lspClientManager = new LspClientManager();
@@ -18678,20 +18785,18 @@ async function runLspAggregatedDiagnostics(directory, extensions = [".ts", ".tsx
   let filesChecked = 0;
   for (const file of files) {
     try {
-      const client = await lspClientManager.getClientForFile(file);
-      if (!client) {
-        continue;
-      }
-      await client.openDocument(file);
-      await new Promise((resolve5) => setTimeout(resolve5, LSP_DIAGNOSTICS_WAIT_MS));
-      const diagnostics = client.getDiagnostics(file);
-      for (const diagnostic of diagnostics) {
-        allDiagnostics.push({
-          file,
-          diagnostic
-        });
-      }
-      filesChecked++;
+      await lspClientManager.runWithClientLease(file, async (client) => {
+        await client.openDocument(file);
+        await new Promise((resolve5) => setTimeout(resolve5, LSP_DIAGNOSTICS_WAIT_MS));
+        const diagnostics = client.getDiagnostics(file);
+        for (const diagnostic of diagnostics) {
+          allDiagnostics.push({
+            file,
+            diagnostic
+          });
+        }
+        filesChecked++;
+      });
     } catch (error2) {
       continue;
     }
@@ -18796,29 +18901,20 @@ ${formatDiagnostics(diags, file)}`);
 // src/tools/lsp-tools.ts
 async function withLspClient(filePath, operation, fn) {
   try {
-    const client = await lspClientManager.getClientForFile(filePath);
-    if (!client) {
-      const serverConfig = getServerForFile(filePath);
-      if (!serverConfig) {
-        return {
-          content: [{
-            type: "text",
-            text: `No language server available for file type: ${filePath}
-
-Use lsp_servers tool to see available language servers.`
-          }]
-        };
-      }
+    const serverConfig = getServerForFile(filePath);
+    if (!serverConfig) {
       return {
         content: [{
           type: "text",
-          text: `Language server '${serverConfig.name}' not installed.
+          text: `No language server available for file type: ${filePath}
 
-Install with: ${serverConfig.installHint}`
+Use lsp_servers tool to see available language servers.`
         }]
       };
     }
-    const result = await fn(client);
+    const result = await lspClientManager.runWithClientLease(filePath, async (client) => {
+      return fn(client);
+    });
     return {
       content: [{
         type: "text",
@@ -18826,10 +18922,19 @@ Install with: ${serverConfig.installHint}`
       }]
     };
   } catch (error2) {
+    const message = error2 instanceof Error ? error2.message : String(error2);
+    if (message.includes("not found")) {
+      return {
+        content: [{
+          type: "text",
+          text: `${message}`
+        }]
+      };
+    }
     return {
       content: [{
         type: "text",
-        text: `Error in ${operation}: ${error2 instanceof Error ? error2.message : String(error2)}`
+        text: `Error in ${operation}: ${message}`
       }]
     };
   }
@@ -21115,15 +21220,6 @@ function getWorktreeProjectMemoryPath(worktreeRoot) {
   return (0, import_path7.join)(root, OmcPaths.PROJECT_MEMORY);
 }
 var SESSION_ID_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,255}$/;
-var processSessionId = null;
-function getProcessSessionId() {
-  if (!processSessionId) {
-    const pid = process.pid;
-    const startTime = Date.now();
-    processSessionId = `pid-${pid}-${startTime}`;
-  }
-  return processSessionId;
-}
 function validateSessionId(sessionId) {
   if (!sessionId) {
     throw new Error("Session ID cannot be empty");
@@ -21220,6 +21316,12 @@ var MODE_CONFIGS = {
     name: "Pipeline",
     stateFile: "pipeline-state.json",
     activeProperty: "active"
+  },
+  team: {
+    name: "Team",
+    stateFile: "team-state.json",
+    activeProperty: "active",
+    hasGlobalState: false
   },
   ralph: {
     name: "Ralph",
@@ -21408,6 +21510,7 @@ var EXECUTION_MODES = [
   "ultrapilot",
   "swarm",
   "pipeline",
+  "team",
   "ralph",
   "ultrawork",
   "ultraqa",
@@ -21426,13 +21529,13 @@ var stateReadTool = {
   schema: {
     mode: external_exports.enum(STATE_TOOL_MODES).describe("The mode to read state for"),
     workingDirectory: external_exports.string().optional().describe("Working directory (defaults to cwd)"),
-    session_id: external_exports.string().optional().describe("Session ID for session-scoped state isolation. STRONGLY RECOMMENDED \u2014 prevents state leakage across parallel Claude Code sessions. When omitted, falls back to legacy shared path.")
+    session_id: external_exports.string().optional().describe("Session ID for session-scoped state isolation. When provided, the tool operates only within that session. When omitted, the tool aggregates legacy state plus all session-scoped state (may include other sessions).")
   },
   handler: async (args) => {
     const { mode, workingDirectory, session_id } = args;
     try {
       const root = validateWorkingDirectory(workingDirectory);
-      const sessionId = session_id || getProcessSessionId();
+      const sessionId = session_id;
       if (mode === "swarm") {
         const statePath2 = getStatePath(mode, root);
         if (!(0, import_fs8.existsSync)(statePath2)) {
@@ -21566,7 +21669,8 @@ Path: ${sessionStatePath}
         content: [{
           type: "text",
           text: `Error reading state for ${mode}: ${error2 instanceof Error ? error2.message : String(error2)}`
-        }]
+        }],
+        isError: true
       };
     }
   }
@@ -21587,7 +21691,7 @@ var stateWriteTool = {
     error: external_exports.string().optional().describe("Error message if the mode failed"),
     state: external_exports.record(external_exports.string(), external_exports.unknown()).optional().describe("Additional custom state fields (merged with explicit parameters)"),
     workingDirectory: external_exports.string().optional().describe("Working directory (defaults to cwd)"),
-    session_id: external_exports.string().optional().describe("Session ID for session-scoped state isolation. STRONGLY RECOMMENDED \u2014 prevents state leakage across parallel Claude Code sessions. When omitted, falls back to legacy shared path.")
+    session_id: external_exports.string().optional().describe("Session ID for session-scoped state isolation. When provided, the tool operates only within that session. When omitted, the tool aggregates legacy state plus all session-scoped state (may include other sessions).")
   },
   handler: async (args) => {
     const {
@@ -21607,13 +21711,14 @@ var stateWriteTool = {
     } = args;
     try {
       const root = validateWorkingDirectory(workingDirectory);
-      const sessionId = session_id || getProcessSessionId();
+      const sessionId = session_id;
       if (mode === "swarm") {
         return {
           content: [{
             type: "text",
             text: `Error: Swarm uses SQLite database (swarm.db), not JSON. Use swarm-specific APIs to modify state.`
-          }]
+          }],
+          isError: true
         };
       }
       let statePath;
@@ -21670,7 +21775,8 @@ ${JSON.stringify(stateWithMeta, null, 2)}
         content: [{
           type: "text",
           text: `Error writing state for ${mode}: ${error3 instanceof Error ? error3.message : String(error3)}`
-        }]
+        }],
+        isError: true
       };
     }
   }
@@ -21681,13 +21787,13 @@ var stateClearTool = {
   schema: {
     mode: external_exports.enum(STATE_TOOL_MODES).describe("The mode to clear state for"),
     workingDirectory: external_exports.string().optional().describe("Working directory (defaults to cwd)"),
-    session_id: external_exports.string().optional().describe("Session ID for session-scoped state isolation. STRONGLY RECOMMENDED \u2014 prevents state leakage across parallel Claude Code sessions. When omitted, falls back to legacy shared path.")
+    session_id: external_exports.string().optional().describe("Session ID for session-scoped state isolation. When provided, the tool operates only within that session. When omitted, the tool aggregates legacy state plus all session-scoped state (may include other sessions).")
   },
   handler: async (args) => {
     const { mode, workingDirectory, session_id } = args;
     try {
       const root = validateWorkingDirectory(workingDirectory);
-      const sessionId = session_id || getProcessSessionId();
+      const sessionId = session_id;
       if (sessionId) {
         validateSessionId(sessionId);
         if (MODE_CONFIGS[mode]) {
@@ -21730,10 +21836,13 @@ Removed: ${statePath}`
       let clearedCount = 0;
       const errors = [];
       if (MODE_CONFIGS[mode]) {
-        if (clearModeState(mode, root)) {
-          clearedCount++;
-        } else {
-          errors.push("legacy path");
+        const legacyStatePath = getStateFilePath(root, mode);
+        if ((0, import_fs8.existsSync)(legacyStatePath)) {
+          if (clearModeState(mode, root)) {
+            clearedCount++;
+          } else {
+            errors.push("legacy path");
+          }
         }
       } else {
         const statePath = getStatePath(mode, root);
@@ -21749,10 +21858,13 @@ Removed: ${statePath}`
       const sessionIds = listSessionIds(root);
       for (const sid of sessionIds) {
         if (MODE_CONFIGS[mode]) {
-          if (clearModeState(mode, root, sid)) {
-            clearedCount++;
-          } else {
-            errors.push(`session: ${sid}`);
+          const sessionStatePath = getStateFilePath(root, mode, sid);
+          if ((0, import_fs8.existsSync)(sessionStatePath)) {
+            if (clearModeState(mode, root, sid)) {
+              clearedCount++;
+            } else {
+              errors.push(`session: ${sid}`);
+            }
           }
         } else {
           const statePath = resolveSessionStatePath(mode, sid, root);
@@ -21780,6 +21892,7 @@ Removed: ${statePath}`
         message += `
 - Errors: ${errors.join(", ")}`;
       }
+      message += "\nWARNING: No session_id provided. Cleared legacy plus all session-scoped state; this is a broad operation that may affect other sessions.";
       return {
         content: [{
           type: "text",
@@ -21791,7 +21904,8 @@ Removed: ${statePath}`
         content: [{
           type: "text",
           text: `Error clearing state for ${mode}: ${error2 instanceof Error ? error2.message : String(error2)}`
-        }]
+        }],
+        isError: true
       };
     }
   }
@@ -21801,13 +21915,13 @@ var stateListActiveTool = {
   description: "List all currently active modes. Returns which modes have active state files.",
   schema: {
     workingDirectory: external_exports.string().optional().describe("Working directory (defaults to cwd)"),
-    session_id: external_exports.string().optional().describe("Session ID for session-scoped state isolation. STRONGLY RECOMMENDED \u2014 prevents state leakage across parallel Claude Code sessions. When omitted, falls back to legacy shared path.")
+    session_id: external_exports.string().optional().describe("Session ID for session-scoped state isolation. When provided, the tool operates only within that session. When omitted, the tool aggregates legacy state plus all session-scoped state (may include other sessions).")
   },
   handler: async (args) => {
     const { workingDirectory, session_id } = args;
     try {
       const root = validateWorkingDirectory(workingDirectory);
-      const sessionId = session_id || getProcessSessionId();
+      const sessionId = session_id;
       if (sessionId) {
         validateSessionId(sessionId);
         const activeModes = [...getActiveModes(root, sessionId)];
@@ -21906,7 +22020,8 @@ ${modeList}`
         content: [{
           type: "text",
           text: `Error listing active modes: ${error2 instanceof Error ? error2.message : String(error2)}`
-        }]
+        }],
+        isError: true
       };
     }
   }
@@ -21917,13 +22032,13 @@ var stateGetStatusTool = {
   schema: {
     mode: external_exports.enum(STATE_TOOL_MODES).optional().describe("Specific mode to check (omit for all modes)"),
     workingDirectory: external_exports.string().optional().describe("Working directory (defaults to cwd)"),
-    session_id: external_exports.string().optional().describe("Session ID for session-scoped state isolation. STRONGLY RECOMMENDED \u2014 prevents state leakage across parallel Claude Code sessions. When omitted, falls back to legacy shared path.")
+    session_id: external_exports.string().optional().describe("Session ID for session-scoped state isolation. When provided, the tool operates only within that session. When omitted, the tool aggregates legacy state plus all session-scoped state (may include other sessions).")
   },
   handler: async (args) => {
     const { mode, workingDirectory, session_id } = args;
     try {
       const root = validateWorkingDirectory(workingDirectory);
-      const sessionId = session_id || getProcessSessionId();
+      const sessionId = session_id;
       if (mode) {
         const lines2 = [`## Status: ${mode}
 `];
@@ -22048,7 +22163,8 @@ No active sessions for this mode.`);
         content: [{
           type: "text",
           text: `Error getting status: ${error2 instanceof Error ? error2.message : String(error2)}`
-        }]
+        }],
+        isError: true
       };
     }
   }

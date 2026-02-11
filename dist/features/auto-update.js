@@ -13,6 +13,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { homedir } from 'os';
 import { execSync } from 'child_process';
+import { install as installSisyphus, HOOKS_DIR, isProjectScopedPlugin, isRunningAsPlugin } from '../installer/index.js';
 /** GitHub repository information */
 export const REPO_OWNER = 'Yeachan-Heo';
 export const REPO_NAME = 'oh-my-claudecode';
@@ -199,12 +200,69 @@ export async function checkForUpdates() {
     };
 }
 /**
+ * Reconcile runtime state after update
+ *
+ * This is safe to run repeatedly and refreshes local runtime artifacts that may
+ * lag behind an updated package or plugin cache.
+ */
+export function reconcileUpdateRuntime(options) {
+    const errors = [];
+    const projectScopedPlugin = isProjectScopedPlugin();
+    if (!projectScopedPlugin) {
+        try {
+            if (!existsSync(HOOKS_DIR)) {
+                mkdirSync(HOOKS_DIR, { recursive: true });
+            }
+        }
+        catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            errors.push(`Failed to prepare hooks directory: ${message}`);
+        }
+    }
+    try {
+        const installResult = installSisyphus({
+            force: true,
+            verbose: options?.verbose ?? false,
+            skipClaudeCheck: true,
+            forceHooks: true,
+            refreshHooksInPlugin: !projectScopedPlugin,
+        });
+        if (!installResult.success) {
+            errors.push(...installResult.errors);
+        }
+    }
+    catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        errors.push(`Failed to refresh installer artifacts: ${message}`);
+    }
+    if (errors.length > 0) {
+        return {
+            success: false,
+            message: 'Runtime reconciliation failed',
+            errors,
+        };
+    }
+    return {
+        success: true,
+        message: 'Runtime state reconciled successfully',
+    };
+}
+/**
  * Download and execute the install script to perform an update
  */
 export async function performUpdate(options) {
     const installed = getInstalledVersion();
     const previousVersion = installed?.version ?? null;
     try {
+        // Check if running as plugin - prevent npm global update from corrupting plugin
+        if (isRunningAsPlugin() && !options?.standalone) {
+            return {
+                success: false,
+                previousVersion,
+                newVersion: 'unknown',
+                message: 'Running as a Claude Code plugin. Use "/plugin install oh-my-claudecode" to update, or pass --standalone to force npm update.',
+            };
+        }
         // Fetch the latest release to get the version
         const release = await fetchLatestRelease();
         const newVersion = release.tag_name.replace(/^v/, '');
@@ -216,7 +274,17 @@ export async function performUpdate(options) {
                 timeout: 120000, // 2 minute timeout for npm
                 ...(process.platform === 'win32' ? { windowsHide: true } : {})
             });
-            // Update version metadata
+            const reconcileResult = reconcileUpdateRuntime({ verbose: options?.verbose });
+            if (!reconcileResult.success) {
+                return {
+                    success: false,
+                    previousVersion,
+                    newVersion,
+                    message: `Updated to ${newVersion}, but runtime reconciliation failed`,
+                    errors: reconcileResult.errors,
+                };
+            }
+            // Update version metadata after reconciliation succeeds
             saveVersionMetadata({
                 version: newVersion,
                 installedAt: new Date().toISOString(),

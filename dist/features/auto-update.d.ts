@@ -148,6 +148,11 @@ export interface UpdateResult {
     message: string;
     errors?: string[];
 }
+export interface UpdateReconcileResult {
+    success: boolean;
+    message: string;
+    errors?: string[];
+}
 /**
  * Read the current version metadata
  */
@@ -174,11 +179,21 @@ export declare function compareVersions(a: string, b: string): number;
  */
 export declare function checkForUpdates(): Promise<UpdateCheckResult>;
 /**
+ * Reconcile runtime state after update
+ *
+ * This is safe to run repeatedly and refreshes local runtime artifacts that may
+ * lag behind an updated package or plugin cache.
+ */
+export declare function reconcileUpdateRuntime(options?: {
+    verbose?: boolean;
+}): UpdateReconcileResult;
+/**
  * Download and execute the install script to perform an update
  */
 export declare function performUpdate(options?: {
     skipConfirmation?: boolean;
     verbose?: boolean;
+    standalone?: boolean;
 }): Promise<UpdateResult>;
 /**
  * Get a formatted update notification message
