@@ -36,6 +36,11 @@ import {
 } from "../analytics/token-extractor.js";
 import { extractSessionId } from "../analytics/output-estimator.js";
 import { getTokenTracker } from "../analytics/token-tracker.js";
+import { getRuntimePackageVersion } from "../lib/version.js";
+import { compareVersions } from "../features/auto-update.js";
+import { existsSync, readFileSync } from "fs";
+import { join } from "path";
+import { homedir } from "os";
 
 // Persistent token snapshot for delta calculations
 let previousSnapshot: TokenSnapshot | null = null;
@@ -374,6 +379,27 @@ async function main(): Promise<void> {
     const rateLimits =
       config.elements.rateLimits !== false ? await getUsage() : null;
 
+    // Read OMC version and update check cache
+    let omcVersion: string | null = null;
+    let updateAvailable: string | null = null;
+    try {
+      omcVersion = getRuntimePackageVersion();
+      if (omcVersion === 'unknown') omcVersion = null;
+    } catch {
+      // Ignore version detection errors
+    }
+    try {
+      const updateCacheFile = join(homedir(), '.omc', 'update-check.json');
+      if (existsSync(updateCacheFile)) {
+        const cached = JSON.parse(readFileSync(updateCacheFile, 'utf-8'));
+        if (cached?.latestVersion && omcVersion && compareVersions(omcVersion, cached.latestVersion) < 0) {
+          updateAvailable = cached.latestVersion;
+        }
+      }
+    } catch {
+      // Ignore update cache read errors
+    }
+
     // Build render context
     const context: HudRenderContext = {
       contextPercent: getContextPercent(stdin),
@@ -396,6 +422,8 @@ async function main(): Promise<void> {
         stdin,
         config.thresholds,
       ),
+      omcVersion,
+      updateAvailable,
     };
 
     // Debug: log data if OMC_DEBUG is set
