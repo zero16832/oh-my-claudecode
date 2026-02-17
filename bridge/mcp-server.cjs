@@ -16405,6 +16405,9 @@ var Protocol = class {
    * The Protocol object assumes ownership of the Transport, replacing any callbacks that have already been set, and expects that it is the only user of the Transport instance going forward.
    */
   async connect(transport) {
+    if (this._transport) {
+      throw new Error("Already connected to a transport. Call close() before connecting to a new transport, or use a separate Protocol instance per connection.");
+    }
     this._transport = transport;
     const _onclose = this.transport?.onclose;
     this._transport.onclose = () => {
@@ -16437,6 +16440,10 @@ var Protocol = class {
     this._progressHandlers.clear();
     this._taskProgressTokens.clear();
     this._pendingDebouncedNotifications.clear();
+    for (const controller of this._requestHandlerAbortControllers.values()) {
+      controller.abort();
+    }
+    this._requestHandlerAbortControllers.clear();
     const error2 = McpError.fromError(ErrorCode.ConnectionClosed, "Connection closed");
     this._transport = void 0;
     this.onclose?.();
@@ -16487,6 +16494,8 @@ var Protocol = class {
       sessionId: capturedTransport?.sessionId,
       _meta: request.params?._meta,
       sendNotification: async (notification) => {
+        if (abortController.signal.aborted)
+          return;
         const notificationOptions = { relatedRequestId: request.id };
         if (relatedTaskId) {
           notificationOptions.relatedTask = { taskId: relatedTaskId };
@@ -16494,6 +16503,9 @@ var Protocol = class {
         await this.notification(notification, notificationOptions);
       },
       sendRequest: async (r, resultSchema, options) => {
+        if (abortController.signal.aborted) {
+          throw new McpError(ErrorCode.ConnectionClosed, "Request was cancelled");
+        }
         const requestOptions = { ...options, relatedRequestId: request.id };
         if (relatedTaskId && !requestOptions.relatedTask) {
           requestOptions.relatedTask = { taskId: relatedTaskId };
@@ -17932,6 +17944,13 @@ var LSP_SERVERS = {
     args: ["-lsp"],
     extensions: [".cs"],
     installHint: "dotnet tool install -g omnisharp"
+  },
+  dart: {
+    name: "Dart Analysis Server",
+    command: "dart",
+    args: ["language-server", "--protocol=lsp"],
+    extensions: [".dart"],
+    installHint: "Install Dart SDK from https://dart.dev/get-dart or Flutter SDK from https://flutter.dev"
   }
 };
 function commandExists(command) {
@@ -17993,7 +18012,10 @@ Install with: ${this.serverConfig.installHint}`
     return new Promise((resolve5, reject) => {
       this.process = (0, import_child_process2.spawn)(this.serverConfig.command, this.serverConfig.args, {
         cwd: this.workspaceRoot,
-        stdio: ["pipe", "pipe", "pipe"]
+        stdio: ["pipe", "pipe", "pipe"],
+        // On Windows, npm-installed binaries are .cmd scripts that require
+        // shell execution. Without this, spawn() fails with ENOENT. (#569)
+        shell: process.platform === "win32"
       });
       this.process.stdout?.on("data", (data) => {
         this.handleData(data.toString());
@@ -21270,24 +21292,41 @@ function validateWorkingDirectory(workingDirectory) {
     return trustedRoot;
   }
   const resolved = (0, import_path7.resolve)(workingDirectory);
-  const providedRoot = getWorktreeRoot(resolved) || resolved;
   let trustedRootReal;
-  let providedRootReal;
   try {
     trustedRootReal = (0, import_fs6.realpathSync)(trustedRoot);
   } catch {
     trustedRootReal = trustedRoot;
   }
+  const providedRoot = getWorktreeRoot(resolved);
+  if (providedRoot) {
+    let providedRootReal;
+    try {
+      providedRootReal = (0, import_fs6.realpathSync)(providedRoot);
+    } catch {
+      throw new Error(`workingDirectory '${workingDirectory}' does not exist or is not accessible.`);
+    }
+    if (providedRootReal !== trustedRootReal) {
+      console.error("[worktree] workingDirectory resolved to different git worktree root, using trusted root", {
+        workingDirectory: resolved,
+        providedRoot: providedRootReal,
+        trustedRoot: trustedRootReal
+      });
+      return trustedRoot;
+    }
+    return providedRoot;
+  }
+  let resolvedReal;
   try {
-    providedRootReal = (0, import_fs6.realpathSync)(providedRoot);
+    resolvedReal = (0, import_fs6.realpathSync)(resolved);
   } catch {
     throw new Error(`workingDirectory '${workingDirectory}' does not exist or is not accessible.`);
   }
-  const rel = (0, import_path7.relative)(trustedRootReal, providedRootReal);
+  const rel = (0, import_path7.relative)(trustedRootReal, resolvedReal);
   if (rel.startsWith("..") || (0, import_path7.isAbsolute)(rel)) {
     throw new Error(`workingDirectory '${workingDirectory}' is outside the trusted worktree root '${trustedRoot}'.`);
   }
-  return providedRoot;
+  return trustedRoot;
 }
 
 // src/hooks/mode-registry/index.ts
@@ -21340,12 +21379,6 @@ var MODE_CONFIGS = {
     name: "UltraQA",
     stateFile: "ultraqa-state.json",
     activeProperty: "active"
-  },
-  ecomode: {
-    name: "Ecomode",
-    stateFile: "ecomode-state.json",
-    activeProperty: "active",
-    hasGlobalState: false
   }
 };
 function getStateDir(cwd) {
@@ -21513,8 +21546,7 @@ var EXECUTION_MODES = [
   "team",
   "ralph",
   "ultrawork",
-  "ultraqa",
-  "ecomode"
+  "ultraqa"
 ];
 var STATE_TOOL_MODES = [...EXECUTION_MODES, "ralplan"];
 function getStatePath(mode, root) {

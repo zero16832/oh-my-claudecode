@@ -11,9 +11,9 @@
  */
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
-import { homedir } from 'os';
 import { execSync } from 'child_process';
 import { install as installSisyphus, HOOKS_DIR, isProjectScopedPlugin, isRunningAsPlugin } from '../installer/index.js';
+import { getConfigDir } from '../utils/config-dir.js';
 /** GitHub repository information */
 export const REPO_OWNER = 'Yeachan-Heo';
 export const REPO_NAME = 'oh-my-claudecode';
@@ -26,7 +26,7 @@ export const GITHUB_RAW_URL = `https://raw.githubusercontent.com/${REPO_OWNER}/$
  * and cache rebuilds reinstall old versions. (See #506)
  */
 function syncMarketplaceClone(verbose = false) {
-    const marketplacePath = join(homedir(), '.claude', 'plugins', 'marketplaces', 'omc');
+    const marketplacePath = join(getConfigDir(), 'plugins', 'marketplaces', 'omc');
     if (!existsSync(marketplacePath)) {
         return { ok: true, message: 'Marketplace clone not found; skipping' };
     }
@@ -42,7 +42,7 @@ function syncMarketplaceClone(verbose = false) {
     try {
         execSync(`git -C "${marketplacePath}" checkout main`, { ...execOpts, timeout: 15000 });
     }
-    catch { }
+    catch { /* ignore checkout errors on older clones */ }
     try {
         execSync(`git -C "${marketplacePath}" pull --ff-only origin main`, execOpts);
     }
@@ -51,14 +51,14 @@ function syncMarketplaceClone(verbose = false) {
     }
     return { ok: true, message: 'Marketplace clone updated' };
 }
-/** Installation paths */
-export const CLAUDE_CONFIG_DIR = join(homedir(), '.claude');
+/** Installation paths (respects CLAUDE_CONFIG_DIR env var) */
+export const CLAUDE_CONFIG_DIR = getConfigDir();
 export const VERSION_FILE = join(CLAUDE_CONFIG_DIR, '.omc-version.json');
 export const CONFIG_FILE = join(CLAUDE_CONFIG_DIR, '.omc-config.json');
 /**
- * Read the Sisyphus configuration
+ * Read the OMC configuration
  */
-export function getSisyphusConfig() {
+export function getOMCConfig() {
     if (!existsSync(CONFIG_FILE)) {
         // No config file = disabled by default for security
         return { silentAutoUpdate: false };
@@ -72,11 +72,13 @@ export function getSisyphusConfig() {
             configVersion: config.configVersion,
             taskTool: config.taskTool,
             taskToolConfig: config.taskToolConfig,
-            defaultExecutionMode: config.defaultExecutionMode,
-            ecomode: config.ecomode,
             setupCompleted: config.setupCompleted,
             setupVersion: config.setupVersion,
             stopHookCallbacks: config.stopHookCallbacks,
+            notifications: config.notifications,
+            notificationProfiles: config.notificationProfiles,
+            hudEnabled: config.hudEnabled,
+            autoUpgradePrompt: config.autoUpgradePrompt,
         };
     }
     catch {
@@ -88,16 +90,36 @@ export function getSisyphusConfig() {
  * Check if silent auto-updates are enabled
  */
 export function isSilentAutoUpdateEnabled() {
-    return getSisyphusConfig().silentAutoUpdate;
+    return getOMCConfig().silentAutoUpdate;
 }
 /**
- * Check if ecomode is enabled
- * Returns true by default if not explicitly disabled
+ * Check if auto-upgrade prompt is enabled at session start
+ * Returns true by default - users must explicitly opt out
  */
-export function isEcomodeEnabled() {
-    const config = getSisyphusConfig();
-    // Default to true if not configured
-    return config.ecomode?.enabled !== false;
+export function isAutoUpgradePromptEnabled() {
+    return getOMCConfig().autoUpgradePrompt !== false;
+}
+/**
+ * Check if team feature is enabled
+ * Returns false by default - requires explicit opt-in
+ * Checks ~/.claude/settings.json first, then env var fallback
+ */
+export function isTeamEnabled() {
+    try {
+        const settingsPath = join(CLAUDE_CONFIG_DIR, 'settings.json');
+        if (existsSync(settingsPath)) {
+            const settings = JSON.parse(readFileSync(settingsPath, 'utf-8'));
+            const val = settings.env?.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS;
+            if (val === '1' || val === 'true') {
+                return true;
+            }
+        }
+    }
+    catch {
+        // Fall through to env check
+    }
+    const envVal = process.env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS;
+    return envVal === '1' || envVal === 'true';
 }
 /**
  * Read the current version metadata

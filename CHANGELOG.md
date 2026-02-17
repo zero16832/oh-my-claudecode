@@ -1,3 +1,75 @@
+# oh-my-claudecode v4.2.4: Session Idle Notifications
+
+Session-idle notifications now fire when Claude stops without any active persistent mode, closing the gap where external integrations (Telegram, Discord) were never informed that a session went idle.
+
+**4 files changed across 3 PRs (#588-#592)**
+
+---
+
+### Fixed
+
+- **Session-idle notification never fired on ordinary stop** (#593): The `persistent-mode.cjs` Stop hook only sent notifications when a persistent mode (ralph, ultrawork, etc.) was active. When Claude stopped normally with no mode running, no `session-idle` event was emitted. External integrations (Telegram, Discord) now receive idle notifications so users know their session is waiting for input.
+
+### Changed
+
+- **Skills cleanup**: Removed deprecated `commands/` stubs and added missing `SKILL.md` files (#588).
+- **HUD installation optional**: Installer now respects `hudEnabled` config, skipping HUD setup when disabled (#567).
+- **Team status hooks**: Emit status hooks on tmux session ready transition (#572).
+- **Explore agent context**: Added context-aware file reading to explore agent (#583).
+
+---
+
+# oh-my-claudecode v4.2.3: Stability & Cross-Platform Fixes
+
+Bug fixes and reliability improvements across worktree state management, Codex rate limiting, session metrics, keyword detection, and cross-platform compatibility.
+
+**94 files changed, 2462 insertions, 886 deletions across 10 PRs (#564-#581)**
+
+---
+
+### Fixed
+
+- **Worktree state written in subdirectories** (#576): `.omc/state/` was created in agent CWD subdirectories instead of the git worktree root. New `resolveToWorktreeRoot()` ensures all state paths resolve to the repo root. Applied consistently across all 8 hook handlers.
+- **Session duration overreported** (#573): `getSessionStartTime()` now filters state files by `session_id`, skipping stale leftovers from previous sessions. Timestamps are parsed to epoch for safe comparison.
+- **Codex 429 rate limit crashes** (#570): Added exponential backoff with jitter for rate limit errors. Configurable via `OMC_CODEX_RATE_LIMIT_RETRY_COUNT` (default 3), `OMC_CODEX_RATE_LIMIT_INITIAL_DELAY` (5s), `OMC_CODEX_RATE_LIMIT_MAX_DELAY` (60s). Applies to both foreground and background Codex execution.
+- **Daemon crash on ESM require()** (#564): Replaced `require()` with dynamic `import()` in daemon spawn script. Moved `appendFileSync`/`renameSync` to top-level ESM imports.
+- **LSP spawn fails on Windows** (#569): Added `shell: true` when `process.platform === 'win32'` so npm-installed `.cmd` binaries are executed correctly.
+- **Post-tool verifier false positives** (#579): Broadened failure detection patterns to prevent false negatives in PostToolUse hooks.
+- **Team bridge ready detection** (#572): Workers now emit a `ready` outbox message after their first successful poll cycle, enabling reliable startup detection. Initial heartbeat written at startup with protected I/O.
+
+### Changed
+
+- **Keyword detector dual-emission**: `ultrapilot` and `swarm` keywords now emit both their original type and `team`, allowing the skill layer to distinguish between direct team invocations and legacy aliases.
+- **Keyword sanitizer improvements**: File path stripping is more precise (requires leading `/`, `./`, or multi-segment paths). XML tag matching now requires matching tag names to prevent over-stripping.
+- **Skills count**: 32 to 34 built-in skills (`configure-discord`, `configure-telegram` added).
+- **README cleanup**: Removed Vietnamese and Portuguese translations.
+
+---
+
+# oh-my-claudecode v4.2.0: Notification Tagging & Config UX
+
+This release adds configurable mention/tag support for lifecycle stop-callback notifications and extends CLI configuration workflows for Telegram and Discord.
+
+### Added
+
+- `tagList` support in stop-callback config for Telegram and Discord.
+- Notification tag normalization:
+  - Telegram: normalizes usernames to `@username`
+  - Discord: supports `@here`, `@everyone`, numeric user IDs (`<@id>`), and role tags (`role:<id>` -> `<@&id>`)
+- Extended `omc config-stop-callback` options:
+  - `--tag-list <csv>`
+  - `--add-tag <tag>`
+  - `--remove-tag <tag>`
+  - `--clear-tags`
+- New CLI test coverage for tag list config mutations.
+
+### Updated
+
+- Session-end callback notifications now prefix summaries with configured tags for Telegram/Discord.
+- Documentation updated across all README locales and `docs/REFERENCE.md` with notification tag configuration examples.
+
+---
+
 # oh-my-claudecode v4.1.11: The Big Fix Release
 
 This release resolves 12 open issues in a single coordinated effort, fixing HUD rendering bugs, improving Windows compatibility, and restoring MCP agent role discovery.

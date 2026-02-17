@@ -7,6 +7,8 @@ description: Setup and configure oh-my-claudecode (the ONLY command you need to 
 
 This is the **only command you need to learn**. After running this, everything else is automatic.
 
+Note: All `~/.claude/...` paths in this guide respect `CLAUDE_CONFIG_DIR` when that environment variable is set.
+
 ## Pre-Setup Check: Already Configured?
 
 **CRITICAL**: Before doing anything else, check if setup has already been completed. This prevents users from having to re-run the full setup wizard after every update.
@@ -581,7 +583,7 @@ Use the AskUserQuestion tool to prompt the user:
 
 **Options:**
 1. **ultrawork (maximum capability)** - Uses all agent tiers including Opus for complex tasks. Best for challenging work where quality matters most. (Recommended)
-2. **ecomode (token efficient)** - Prefers Haiku/Sonnet agents, avoids Opus. Best for pro-plan users who want cost efficiency.
+2. ** (token efficient)** - Prefers Haiku/Sonnet agents, avoids Opus. Best for pro-plan users who want cost efficiency.
 
 Store the preference in `~/.claude/.omc-config.json`:
 
@@ -596,7 +598,7 @@ else
   EXISTING='{}'
 fi
 
-# Set defaultExecutionMode (replace USER_CHOICE with "ultrawork" or "ecomode")
+# Set defaultExecutionMode (replace USER_CHOICE with "ultrawork" or "")
 echo "$EXISTING" | jq --arg mode "USER_CHOICE" '. + {defaultExecutionMode: $mode, configuredAt: (now | todate)}' > "$CONFIG_FILE"
 echo "Default execution mode set to: USER_CHOICE"
 ```
@@ -605,10 +607,10 @@ echo "Default execution mode set to: USER_CHOICE"
 
 ### Optional: Disable Ecomode Entirely
 
-If the user wants to disable ecomode completely (so ecomode keywords are ignored), add to the config:
+If the user wants to disable  completely (so  keywords are ignored), add to the config:
 
 ```bash
-echo "$EXISTING" | jq '. + {ecomode: {enabled: false}}' > "$CONFIG_FILE"
+echo "$EXISTING" | jq '. + {: {enabled: false}}' > "$CONFIG_FILE"
 echo "Ecomode disabled completely"
 ```
 
@@ -627,8 +629,8 @@ Ask user: "Would you like to install the OMC CLI for standalone analytics? (Reco
 The CLI (`omc` command) is **no longer supported** via npm/bun global install.
 
 All functionality is available through the plugin system:
-- Use `/oh-my-claudecode:help` for guidance
-- Use `/oh-my-claudecode:doctor` for diagnostics
+- Use `/oh-my-claudecode:omc-help` for guidance
+- Use `/oh-my-claudecode:omc-doctor` for diagnostics
 
 Skip this step - the plugin provides all features.
 
