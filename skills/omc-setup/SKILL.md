@@ -511,21 +511,8 @@ EOF
 Clear old cached plugin versions to avoid conflicts:
 
 ```bash
-# Clear stale plugin cache versions
-CACHE_DIR="$HOME/.claude/plugins/cache/omc/oh-my-claudecode"
-if [ -d "$CACHE_DIR" ]; then
-  LATEST=$(ls -1 "$CACHE_DIR" | sort -V | tail -1)
-  CLEARED=0
-  for dir in "$CACHE_DIR"/*; do
-    if [ "$(basename "$dir")" != "$LATEST" ]; then
-      rm -rf "$dir"
-      CLEARED=$((CLEARED + 1))
-    fi
-  done
-  [ $CLEARED -gt 0 ] && echo "Cleared $CLEARED stale cache version(s)" || echo "Cache is clean"
-else
-  echo "No cache directory found (normal for new installs)"
-fi
+# Clear stale plugin cache versions (cross-platform)
+node -e "const p=require('path'),f=require('fs'),h=require('os').homedir(),d=process.env.CLAUDE_CONFIG_DIR||p.join(h,'.claude'),b=p.join(d,'plugins','cache','omc','oh-my-claudecode');try{const v=f.readdirSync(b).filter(x=>/^\d/.test(x)).sort((a,c)=>a.localeCompare(c,void 0,{numeric:true}));if(v.length<=1){console.log('Cache is clean');process.exit()}v.slice(0,-1).forEach(x=>{f.rmSync(p.join(b,x),{recursive:true,force:true})});console.log('Cleared',v.length-1,'stale cache version(s)')}catch{console.log('No cache directory found (normal for new installs)')}"
 ```
 
 ## Step 3.6: Check for Updates
@@ -533,27 +520,20 @@ fi
 Notify user if a newer version is available:
 
 ```bash
-# Detect installed version
-INSTALLED_VERSION=""
-
-# Try cache directory first
-if [ -d "$HOME/.claude/plugins/cache/omc/oh-my-claudecode" ]; then
-  INSTALLED_VERSION=$(ls -1 "$HOME/.claude/plugins/cache/omc/oh-my-claudecode" | sort -V | tail -1)
-fi
-
-# Try .omc-version.json second
-if [ -z "$INSTALLED_VERSION" ] && [ -f ".omc-version.json" ]; then
-  INSTALLED_VERSION=$(grep -oE '"version":\s*"[^"]+' .omc-version.json | cut -d'"' -f4)
-fi
-
-# Try CLAUDE.md header third (local first, then global)
-if [ -z "$INSTALLED_VERSION" ]; then
-  if [ -f ".claude/CLAUDE.md" ]; then
-    INSTALLED_VERSION=$(grep -m1 "^# oh-my-claudecode" .claude/CLAUDE.md 2>/dev/null | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | sed 's/^v//')
-  elif [ -f "$HOME/.claude/CLAUDE.md" ]; then
-    INSTALLED_VERSION=$(grep -m1 "^# oh-my-claudecode" "$HOME/.claude/CLAUDE.md" 2>/dev/null | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | sed 's/^v//')
-  fi
-fi
+# Detect installed version (cross-platform)
+node -e "
+const p=require('path'),f=require('fs'),h=require('os').homedir();
+const d=process.env.CLAUDE_CONFIG_DIR||p.join(h,'.claude');
+let v='';
+// Try cache directory first
+const b=p.join(d,'plugins','cache','omc','oh-my-claudecode');
+try{const vs=f.readdirSync(b).filter(x=>/^\d/.test(x)).sort((a,c)=>a.localeCompare(c,void 0,{numeric:true}));if(vs.length)v=vs[vs.length-1]}catch{}
+// Try .omc-version.json second
+if(v==='')try{const j=JSON.parse(f.readFileSync('.omc-version.json','utf-8'));v=j.version||''}catch{}
+// Try CLAUDE.md header third
+if(v==='')for(const c of['.claude/CLAUDE.md',p.join(d,'CLAUDE.md')]){try{const m=f.readFileSync(c,'utf-8').match(/^# oh-my-claudecode.*?(v?\d+\.\d+\.\d+)/m);if(m){v=m[1].replace(/^v/,'');break}}catch{}}
+console.log('Installed:',v||'(not found)');
+"
 
 # Check npm for latest version
 LATEST_VERSION=$(npm view oh-my-claude-sisyphus version 2>/dev/null)
@@ -583,7 +563,6 @@ Use the AskUserQuestion tool to prompt the user:
 
 **Options:**
 1. **ultrawork (maximum capability)** - Uses all agent tiers including Opus for complex tasks. Best for challenging work where quality matters most. (Recommended)
-2. ** (token efficient)** - Prefers Haiku/Sonnet agents, avoids Opus. Best for pro-plan users who want cost efficiency.
 
 Store the preference in `~/.claude/.omc-config.json`:
 
@@ -603,16 +582,8 @@ echo "$EXISTING" | jq --arg mode "USER_CHOICE" '. + {defaultExecutionMode: $mode
 echo "Default execution mode set to: USER_CHOICE"
 ```
 
-**Note**: This preference ONLY affects generic keywords ("fast", "parallel"). Explicit keywords ("ulw", "eco") always override this preference.
+**Note**: This preference ONLY affects generic keywords ("fast", "parallel"). Explicit keywords ("ulw") always override this preference.
 
-### Optional: Disable Ecomode Entirely
-
-If the user wants to disable  completely (so  keywords are ignored), add to the config:
-
-```bash
-echo "$EXISTING" | jq '. + {: {enabled: false}}' > "$CONFIG_FILE"
-echo "Ecomode disabled completely"
-```
 
 ## Step 3.8: Install CLI Analytics Tools (Optional)
 
@@ -943,7 +914,6 @@ Just include these words naturally in your request:
 | ralph | Persistence mode | "ralph: fix the auth bug" |
 | ralplan | Iterative planning | "ralplan this feature" |
 | ulw | Max parallelism | "ulw refactor the API" |
-| eco | Token-efficient mode | "eco refactor the API" |
 | plan | Planning interview | "plan the new endpoints" |
 | team | Coordinated agents | "/team 3:executor fix errors" |
 
@@ -991,7 +961,6 @@ MAGIC KEYWORDS (power-user shortcuts):
 | ralph | /ralph | "ralph: fix the bug" |
 | ralplan | /ralplan | "ralplan this feature" |
 | ulw | /ultrawork | "ulw refactor API" |
-| eco | (new!) | "eco fix all errors" |
 | plan | /plan | "plan the endpoints" |
 | team | (new!) | "/team 3:executor fix errors" |
 
@@ -1021,6 +990,18 @@ gh auth status &>/dev/null
 ```
 
 ### If gh is available and authenticated:
+
+**Before prompting, check if the repository is already starred:**
+
+```bash
+gh api user/starred/Yeachan-Heo/oh-my-claudecode &>/dev/null
+```
+
+**If already starred (exit code 0):**
+- Skip the prompt entirely
+- Continue to next step silently
+
+**If NOT starred (exit code non-zero):**
 
 Use the AskUserQuestion tool to prompt the user:
 
@@ -1145,3 +1126,24 @@ EXAMPLES:
 
 For more info: https://github.com/Yeachan-Heo/oh-my-claudecode
 ```
+
+## Optional Rule Templates
+
+OMC includes rule templates you can copy to your project's `.claude/rules/` directory for automatic context injection:
+
+| Template | Purpose |
+|----------|---------|
+| `coding-style.md` | Code style, immutability, file organization |
+| `testing.md` | TDD workflow, 80% coverage target |
+| `security.md` | Secret management, input validation |
+| `performance.md` | Model selection, context management |
+| `git-workflow.md` | Commit conventions, PR workflow |
+| `karpathy-guidelines.md` | Coding discipline — think before coding, simplicity, surgical changes |
+
+Copy with:
+```bash
+mkdir -p .claude/rules
+cp "${CLAUDE_PLUGIN_ROOT}/templates/rules/"*.md .claude/rules/
+```
+
+See `templates/rules/README.md` for details.

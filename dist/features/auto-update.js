@@ -12,8 +12,9 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { execSync } from 'child_process';
-import { install as installSisyphus, HOOKS_DIR, isProjectScopedPlugin, isRunningAsPlugin } from '../installer/index.js';
+import { install as installOmc, HOOKS_DIR, isProjectScopedPlugin, isRunningAsPlugin } from '../installer/index.js';
 import { getConfigDir } from '../utils/config-dir.js';
+import { purgeStalePluginCacheVersions } from '../utils/paths.js';
 /** GitHub repository information */
 export const REPO_OWNER = 'Yeachan-Heo';
 export const REPO_NAME = 'oh-my-claudecode';
@@ -274,7 +275,7 @@ export function reconcileUpdateRuntime(options) {
         }
     }
     try {
-        const installResult = installSisyphus({
+        const installResult = installOmc({
             force: true,
             verbose: options?.verbose ?? false,
             skipClaudeCheck: true,
@@ -288,6 +289,21 @@ export function reconcileUpdateRuntime(options) {
     catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         errors.push(`Failed to refresh installer artifacts: ${message}`);
+    }
+    // Purge stale plugin cache versions (non-fatal)
+    try {
+        const purgeResult = purgeStalePluginCacheVersions();
+        if (purgeResult.removed > 0 && options?.verbose) {
+            console.log(`[omc] Purged ${purgeResult.removed} stale plugin cache version(s)`);
+        }
+        if (purgeResult.errors.length > 0 && options?.verbose) {
+            for (const err of purgeResult.errors) {
+                console.warn(`[omc] Cache purge warning: ${err}`);
+            }
+        }
+    }
+    catch {
+        // Cache purge is best-effort; never block reconciliation
     }
     if (errors.length > 0) {
         return {
@@ -333,29 +349,68 @@ export async function performUpdate(options) {
             if (!marketplaceSync.ok && options?.verbose) {
                 console.warn(`[omc update] ${marketplaceSync.message}`);
             }
-            const reconcileResult = reconcileUpdateRuntime({ verbose: options?.verbose });
-            if (!reconcileResult.success) {
+            // CRITICAL FIX: After npm updates the global package, the current process
+            // still has OLD code loaded in memory. We must re-exec to run reconciliation
+            // with the NEW code. Otherwise, installOmc() runs OLD logic against NEW files.
+            if (!process.env.OMC_UPDATE_RECONCILE) {
+                // Set flag to prevent infinite loop
+                process.env.OMC_UPDATE_RECONCILE = '1';
+                // Find the omc binary path
+                const omcPath = execSync('which omc 2>/dev/null || where omc 2>NUL', {
+                    encoding: 'utf-8',
+                    stdio: 'pipe',
+                }).trim().split('\n')[0];
+                // Re-exec with reconcile subcommand
+                try {
+                    execSync(`"${omcPath}" update-reconcile`, {
+                        encoding: 'utf-8',
+                        stdio: options?.verbose ? 'inherit' : 'pipe',
+                        timeout: 60000,
+                        env: { ...process.env, OMC_UPDATE_RECONCILE: '1' }
+                    });
+                }
+                catch (reconcileError) {
+                    return {
+                        success: false,
+                        previousVersion,
+                        newVersion,
+                        message: `Updated to ${newVersion}, but runtime reconciliation failed`,
+                        errors: [reconcileError instanceof Error ? reconcileError.message : String(reconcileError)],
+                    };
+                }
+                // Update version metadata after reconciliation succeeds
+                saveVersionMetadata({
+                    version: newVersion,
+                    installedAt: new Date().toISOString(),
+                    installMethod: 'npm',
+                    lastCheckAt: new Date().toISOString()
+                });
                 return {
-                    success: false,
+                    success: true,
                     previousVersion,
                     newVersion,
-                    message: `Updated to ${newVersion}, but runtime reconciliation failed`,
-                    errors: reconcileResult.errors,
+                    message: `Successfully updated from ${previousVersion ?? 'unknown'} to ${newVersion}`
                 };
             }
-            // Update version metadata after reconciliation succeeds
-            saveVersionMetadata({
-                version: newVersion,
-                installedAt: new Date().toISOString(),
-                installMethod: 'npm',
-                lastCheckAt: new Date().toISOString()
-            });
-            return {
-                success: true,
-                previousVersion,
-                newVersion,
-                message: `Successfully updated from ${previousVersion ?? 'unknown'} to ${newVersion}`
-            };
+            else {
+                // We're in the re-exec'd process - run reconciliation directly
+                const reconcileResult = reconcileUpdateRuntime({ verbose: options?.verbose });
+                if (!reconcileResult.success) {
+                    return {
+                        success: false,
+                        previousVersion,
+                        newVersion,
+                        message: `Updated to ${newVersion}, but runtime reconciliation failed`,
+                        errors: reconcileResult.errors?.map(e => `Reconciliation failed: ${e}`),
+                    };
+                }
+                return {
+                    success: true,
+                    previousVersion,
+                    newVersion,
+                    message: 'Reconciliation completed successfully'
+                };
+            }
         }
         catch (npmError) {
             throw new Error('Auto-update via npm failed. Please run manually:\n' +

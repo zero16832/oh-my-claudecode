@@ -22,6 +22,7 @@ import {
   readAutopilotStateForHud,
 } from "./omc-state.js";
 import { getUsage } from "./usage-api.js";
+import { executeCustomProvider } from "./custom-rate-provider.js";
 import { render } from "./render.js";
 import { sanitizeOutput } from "./sanitize.js";
 import type {
@@ -38,7 +39,7 @@ import { extractSessionId } from "../analytics/output-estimator.js";
 import { getTokenTracker } from "../analytics/token-tracker.js";
 import { getRuntimePackageVersion } from "../lib/version.js";
 import { compareVersions } from "../features/auto-update.js";
-import { existsSync, readFileSync } from "fs";
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
 
@@ -152,7 +153,7 @@ async function recordTokenUsage(
  *
  * @returns Analytics fields or null if no token data available
  */
-async function getTokenTrackerFallback(
+async function _getTokenTrackerFallback(
   sessionId: string,
   durationMs: number,
 ): Promise<{
@@ -250,7 +251,7 @@ async function calculateSessionHealth(
       await import("../analytics/output-estimator.js");
 
     const modelName =
-      stdin.model?.id ?? stdin.model?.display_name ?? "claude-sonnet-4.5";
+      stdin.model?.id ?? stdin.model?.display_name ?? "claude-sonnet-4.6";
     const estimatedOutput = estimateOutputTokens(inputTokens, modelName);
 
     const costResult = calculateCost({
@@ -349,7 +350,7 @@ async function main(): Promise<void> {
 
     // Read HUD state for background tasks
     const hudState = readHudState(cwd);
-    const backgroundTasks = hudState?.backgroundTasks || [];
+    const _backgroundTasks = hudState?.backgroundTasks || [];
 
     // Persist session start time to survive tail-parsing resets (#528)
     // When tail parsing kicks in for large transcripts, sessionStart comes from
@@ -378,6 +379,12 @@ async function main(): Promise<void> {
     // Fetch rate limits from OAuth API (if available)
     const rateLimits =
       config.elements.rateLimits !== false ? await getUsage() : null;
+
+    // Fetch custom rate limit buckets (if configured)
+    const customBuckets =
+      config.rateLimitsProvider?.type === 'custom'
+        ? await executeCustomProvider(config.rateLimitsProvider)
+        : null;
 
     // Read OMC version and update check cache
     let omcVersion: string | null = null;
@@ -414,6 +421,7 @@ async function main(): Promise<void> {
       cwd,
       lastSkill: transcriptData.lastActivatedSkill || null,
       rateLimits,
+      customBuckets,
       pendingPermission: transcriptData.pendingPermission || null,
       thinkingState: transcriptData.thinkingState || null,
       sessionHealth: await calculateSessionHealth(
@@ -424,6 +432,9 @@ async function main(): Promise<void> {
       ),
       omcVersion,
       updateAvailable,
+      toolCallCount: transcriptData.toolCallCount,
+      agentCallCount: transcriptData.agentCallCount,
+      skillCallCount: transcriptData.skillCallCount,
     };
 
     // Debug: log data if OMC_DEBUG is set
@@ -438,13 +449,42 @@ async function main(): Promise<void> {
       );
     }
 
+    // autoCompact: write trigger file when context exceeds threshold
+    // A companion hook can read this file to inject a /compact suggestion.
+    if (
+      config.contextLimitWarning.autoCompact &&
+      context.contextPercent >= config.contextLimitWarning.threshold
+    ) {
+      try {
+        const omcStateDir = join(cwd, '.omc', 'state');
+        if (!existsSync(omcStateDir)) {
+          mkdirSync(omcStateDir, { recursive: true });
+        }
+        const triggerFile = join(omcStateDir, 'compact-requested.json');
+        writeFileSync(
+          triggerFile,
+          JSON.stringify({
+            requestedAt: new Date().toISOString(),
+            contextPercent: context.contextPercent,
+            threshold: config.contextLimitWarning.threshold,
+          }),
+        );
+      } catch {
+        // Silent failure — don't break HUD rendering
+      }
+    }
+
     // Render and output
     let output = await render(context, config);
 
     // Apply safe mode sanitization if enabled (Issue #346)
     // This strips ANSI codes and uses ASCII-only output to prevent
     // terminal rendering corruption during concurrent updates
-    if (config.elements.safeMode) {
+    // On Windows, always use safe mode to prevent terminal rendering issues
+    // with non-breaking spaces and ANSI escape sequences
+    const useSafeMode = config.elements.safeMode || process.platform === 'win32';
+
+    if (useSafeMode) {
       output = sanitizeOutput(output);
       // In safe mode, use regular spaces (don't convert to non-breaking)
       console.log(output);
@@ -475,5 +515,8 @@ async function main(): Promise<void> {
   }
 }
 
-// Run main
+// Export for programmatic use (e.g., omc hud --watch loop)
+export { main };
+
+// Auto-run (unconditional so dynamic import() via omc-hud.mjs wrapper works correctly)
 main();

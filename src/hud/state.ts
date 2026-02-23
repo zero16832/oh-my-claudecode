@@ -197,6 +197,11 @@ function mergeWithDefaults(config: Partial<HudConfig>): HudConfig {
       ...config.thresholds,
     },
     staleTaskThresholdMinutes: config.staleTaskThresholdMinutes ?? DEFAULT_HUD_CONFIG.staleTaskThresholdMinutes,
+    contextLimitWarning: {
+      ...DEFAULT_HUD_CONFIG.contextLimitWarning,
+      ...config.contextLimitWarning,
+    },
+    ...(config.rateLimitsProvider ? { rateLimitsProvider: config.rateLimitsProvider } : {}),
   };
 }
 

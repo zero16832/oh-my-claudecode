@@ -6,7 +6,8 @@ try {
   var _Module = require('module');
   var _globalRoot = _cp.execSync('npm root -g', { encoding: 'utf8', timeout: 5000 }).trim();
   if (_globalRoot) {
-    process.env.NODE_PATH = _globalRoot + (process.env.NODE_PATH ? ':' + process.env.NODE_PATH : '');
+    var _sep = process.platform === 'win32' ? ';' : ':';
+    process.env.NODE_PATH = _globalRoot + (process.env.NODE_PATH ? _sep + process.env.NODE_PATH : '');
     _Module._initPaths();
   }
 } catch (_e) { /* npm not available - native modules will gracefully degrade */ }
@@ -17951,6 +17952,13 @@ var LSP_SERVERS = {
     args: ["language-server", "--protocol=lsp"],
     extensions: [".dart"],
     installHint: "Install Dart SDK from https://dart.dev/get-dart or Flutter SDK from https://flutter.dev"
+  },
+  swift: {
+    name: "SourceKit-LSP",
+    command: "sourcekit-lsp",
+    args: [],
+    extensions: [".swift"],
+    installHint: "Install Swift from https://swift.org/download or via Xcode"
   }
 };
 function commandExists(command) {
@@ -18528,6 +18536,9 @@ var LspClientManager = class {
   }
 };
 var lspClientManager = new LspClientManager();
+async function disconnectAll() {
+  return lspClientManager.disconnectAll();
+}
 
 // src/tools/lsp/utils.ts
 var SYMBOL_KINDS = {
@@ -18790,11 +18801,11 @@ function findFiles(directory, extensions, ignoreDirs = []) {
               results.push(fullPath);
             }
           }
-        } catch (error2) {
+        } catch (_error) {
           continue;
         }
       }
-    } catch (error2) {
+    } catch (_error) {
       return;
     }
   }
@@ -18819,7 +18830,7 @@ async function runLspAggregatedDiagnostics(directory, extensions = [".ts", ".tsx
         }
         filesChecked++;
       });
-    } catch (error2) {
+    } catch (_error) {
       continue;
     }
   }
@@ -20251,7 +20262,7 @@ var SessionLock = class {
         acquired: true,
         reason: existingLock ? "stale_broken" : "success"
       };
-    } catch (err) {
+    } catch (_err) {
       return {
         acquired: false,
         reason: "error"
@@ -20956,7 +20967,7 @@ async function handleReset(sessionId, socketPath) {
   try {
     const result = await sendSocketRequest(socketPath, "reset", {}, 1e4);
     return formatResetResult(result, sessionId);
-  } catch (error2) {
+  } catch (_error) {
     await killBridgeWithEscalation(sessionId);
     return [
       "=== Bridge Restarted ===",
@@ -22876,7 +22887,7 @@ async function loadProjectMemory(projectRoot) {
       return null;
     }
     return memory;
-  } catch (error2) {
+  } catch (_error) {
     return null;
   }
 }
@@ -23069,7 +23080,7 @@ var projectMemoryAddNoteTool = {
     const { category, content, workingDirectory } = args;
     try {
       const root = validateWorkingDirectory(workingDirectory);
-      let memory = await loadProjectMemory(root);
+      const memory = await loadProjectMemory(root);
       if (!memory) {
         return {
           content: [{
@@ -23111,7 +23122,7 @@ var projectMemoryAddDirectiveTool = {
     const { directive, context = "", priority = "normal", workingDirectory } = args;
     try {
       const root = validateWorkingDirectory(workingDirectory);
-      let memory = await loadProjectMemory(root);
+      const memory = await loadProjectMemory(root);
       if (!memory) {
         return {
           content: [{
@@ -23807,6 +23818,26 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       isError: true
     };
   }
+});
+async function gracefulShutdown(signal) {
+  const forceExitTimer = setTimeout(() => process.exit(1), 5e3);
+  forceExitTimer.unref();
+  console.error(`OMC MCP Server: received ${signal}, disconnecting LSP servers...`);
+  try {
+    await disconnectAll();
+  } catch {
+  }
+  try {
+    await server.close();
+  } catch {
+  }
+  process.exit(0);
+}
+process.on("SIGTERM", () => {
+  gracefulShutdown("SIGTERM");
+});
+process.on("SIGINT", () => {
+  gracefulShutdown("SIGINT");
 });
 async function main() {
   const transport = new StdioServerTransport();

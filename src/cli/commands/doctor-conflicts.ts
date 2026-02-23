@@ -7,7 +7,6 @@ import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { getClaudeConfigDir } from '../../utils/paths.js';
 import { isOmcHook } from '../../installer/index.js';
-import type { PluginConfig } from '../../shared/types.js';
 import { colors } from '../utils/formatting.js';
 
 export interface ConflictReport {
@@ -19,11 +18,10 @@ export interface ConflictReport {
 }
 
 /**
- * Check for hook conflicts in ~/.claude/settings.json
+ * Collect hook entries from a single settings.json file.
  */
-export function checkHookConflicts(): ConflictReport['hookConflicts'] {
+function collectHooksFromSettings(settingsPath: string): ConflictReport['hookConflicts'] {
   const conflicts: ConflictReport['hookConflicts'] = [];
-  const settingsPath = join(getClaudeConfigDir(), 'settings.json');
 
   if (!existsSync(settingsPath)) {
     return conflicts;
@@ -56,11 +54,40 @@ export function checkHookConflicts(): ConflictReport['hookConflicts'] {
         }
       }
     }
-  } catch (error) {
+  } catch (_error) {
     // Ignore parse errors, will be reported separately
   }
 
   return conflicts;
+}
+
+/**
+ * Check for hook conflicts in both profile-level (~/.claude/settings.json)
+ * and project-level (./.claude/settings.json).
+ *
+ * Claude Code settings precedence: project > profile > defaults.
+ * We check both levels so the diagnostic is complete.
+ */
+export function checkHookConflicts(): ConflictReport['hookConflicts'] {
+  const profileSettingsPath = join(getClaudeConfigDir(), 'settings.json');
+  const projectSettingsPath = join(process.cwd(), '.claude', 'settings.json');
+
+  const profileHooks = collectHooksFromSettings(profileSettingsPath);
+  const projectHooks = collectHooksFromSettings(projectSettingsPath);
+
+  // Deduplicate by event+command (same hook in both levels should appear once)
+  const seen = new Set<string>();
+  const merged: ConflictReport['hookConflicts'] = [];
+
+  for (const hook of [...projectHooks, ...profileHooks]) {
+    const key = `${hook.event}::${hook.command}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      merged.push(hook);
+    }
+  }
+
+  return merged;
 }
 
 /**
@@ -100,7 +127,7 @@ export function checkClaudeMdStatus(): ConflictReport['claudeMdStatus'] {
       hasUserContent,
       path: claudeMdPath
     };
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 }
@@ -163,7 +190,7 @@ export function checkConfigIssues(): ConflictReport['configIssues'] {
         unknownFields.push(field);
       }
     }
-  } catch (error) {
+  } catch (_error) {
     // Ignore parse errors
   }
 

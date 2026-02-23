@@ -1,11 +1,15 @@
 // src/team/mcp-team-bridge.ts
 /**
+ * @deprecated The MCP x/g servers have been removed. This bridge now runs
+ * against tmux-based CLI workers (Codex CLI, Gemini CLI) directly.
+ * This file is retained for the tmux bridge daemon functionality.
+ *
  * MCP Team Bridge Daemon
  *
  * Core bridge process that runs in a tmux session alongside a Codex/Gemini CLI.
  * Polls task files, builds prompts, spawns CLI processes, reports results.
  */
-import { spawn } from 'child_process';
+import { spawn, execSync } from 'child_process';
 import { existsSync, openSync, readSync, closeSync } from 'fs';
 import { join } from 'path';
 import { writeFileWithMode, ensureDirWithMode } from './fs-utils.js';
@@ -16,6 +20,7 @@ import { writeHeartbeat, deleteHeartbeat } from './heartbeat.js';
 import { killSession } from './tmux-session.js';
 import { logAuditEvent } from './audit-log.js';
 import { getEffectivePermissions, findPermissionViolations } from './permissions.js';
+import { getTeamStatus } from './team-status.js';
 /** Simple logger */
 function log(message) {
     const ts = new Date().toISOString();
@@ -44,8 +49,7 @@ function sleep(ms) {
  * Uses `git status --porcelain` + `git ls-files --others --exclude-standard`.
  * Returns a Set of relative file paths that currently exist or are modified.
  */
-function captureFileSnapshot(cwd) {
-    const { execSync } = require('child_process');
+export function captureFileSnapshot(cwd) {
     const files = new Set();
     try {
         // Get all tracked files that are modified, added, or staged
@@ -301,7 +305,7 @@ function spawnCliProcess(provider, prompt, model, cwd, timeoutMs) {
     let cmd;
     if (provider === 'codex') {
         cmd = 'codex';
-        args = ['exec', '-m', model || 'gpt-5.3-codex', '--json', '--full-auto'];
+        args = ['exec', '-m', model || 'gpt-5.3-codex', '--json', '--full-auto', '--skip-git-repo-check'];
     }
     else {
         cmd = 'gemini';
@@ -512,7 +516,7 @@ export async function runBridge(config) {
                 }
                 // --- 7. Build prompt ---
                 const prompt = buildTaskPrompt(task, messages, config);
-                const promptFile = writePromptFile(config, task.id, prompt);
+                const _promptFile = writePromptFile(config, task.id, prompt);
                 const outputFile = getOutputPath(config, task.id);
                 log(`[bridge] Executing task ${task.id}: ${task.subject}`);
                 // --- 8. Execute CLI (with permission enforcement) ---
@@ -667,6 +671,27 @@ export async function runBridge(config) {
                     });
                     audit(config, 'worker_idle');
                     idleNotified = true;
+                }
+                // --- Auto-cleanup: self-terminate when all team tasks are done ---
+                // Only check when we have no pending task and already notified idle.
+                // Guard: if inProgress > 0, other workers are still running — don't shutdown yet.
+                try {
+                    const teamStatus = getTeamStatus(teamName, workingDirectory);
+                    if (teamStatus.taskSummary.total > 0 && teamStatus.taskSummary.pending === 0 && teamStatus.taskSummary.inProgress === 0) {
+                        log(`[bridge] All team tasks complete. Auto-terminating worker.`);
+                        appendOutbox(teamName, workerName, {
+                            type: 'all_tasks_complete',
+                            message: 'All team tasks reached terminal state. Worker self-terminating.',
+                            timestamp: new Date().toISOString()
+                        });
+                        audit(config, 'bridge_shutdown', undefined, { reason: 'auto_cleanup_all_tasks_complete' });
+                        await handleShutdown(config, { requestId: 'auto-cleanup', reason: 'all_tasks_complete' }, activeChild);
+                        break;
+                    }
+                }
+                catch (err) {
+                    // Non-fatal: if status check fails, keep polling
+                    log(`[bridge] Auto-cleanup status check failed: ${err.message}`);
                 }
             }
             // --- 11. Rotate outbox if needed ---

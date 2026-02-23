@@ -12,7 +12,7 @@ import { renderSkills, renderLastSkill } from './elements/skills.js';
 import { renderContext, renderContextWithBar } from './elements/context.js';
 import { renderBackground } from './elements/background.js';
 import { renderPrd } from './elements/prd.js';
-import { renderRateLimits, renderRateLimitsWithBar } from './elements/limits.js';
+import { renderRateLimits, renderRateLimitsWithBar, renderCustomBuckets } from './elements/limits.js';
 import { renderPermission } from './elements/permission.js';
 import { renderThinking } from './elements/thinking.js';
 import { renderSession } from './elements/session.js';
@@ -20,6 +20,8 @@ import { renderAutopilot } from './elements/autopilot.js';
 import { renderCwd } from './elements/cwd.js';
 import { renderGitRepo, renderGitBranch } from './elements/git.js';
 import { renderModel } from './elements/model.js';
+import { renderCallCounts } from './elements/call-counts.js';
+import { renderContextLimitWarning } from './elements/context-warning.js';
 import { getAnalyticsDisplay, renderAnalyticsLineWithConfig, getSessionInfo, getSessionHealthAnalyticsData, renderBudgetWarning, renderCacheEfficiency } from './analytics-display.js';
 /**
  * Limit output lines to prevent input field shrinkage (Issue #222).
@@ -167,6 +169,13 @@ export async function render(context, config) {
         if (limits)
             elements.push(limits);
     }
+    // Custom rate limit buckets
+    if (context.customBuckets) {
+        const thresholdPercent = config.rateLimitsProvider?.resetsAtDisplayThresholdPercent;
+        const custom = renderCustomBuckets(context.customBuckets, thresholdPercent);
+        if (custom)
+            elements.push(custom);
+    }
     // Permission status indicator (heuristic-based)
     if (enabledElements.permissionStatus && context.pendingPermission) {
         const permission = renderPermission(context.pendingPermission);
@@ -264,6 +273,18 @@ export async function render(context, config) {
         if (bg)
             elements.push(bg);
     }
+    // Call counts on the right side of the status line (Issue #710)
+    // Controlled by showCallCounts config option (default: true)
+    const showCounts = enabledElements.showCallCounts ?? true;
+    if (showCounts) {
+        const counts = renderCallCounts(context.toolCallCount, context.agentCallCount, context.skillCallCount);
+        if (counts)
+            elements.push(counts);
+    }
+    // Context limit warning banner (shown when ctx% >= threshold)
+    const ctxWarning = renderContextLimitWarning(context.contextPercent, config.contextLimitWarning.threshold, config.contextLimitWarning.autoCompact);
+    if (ctxWarning)
+        detailLines.push(ctxWarning);
     // Compose output
     const outputLines = [];
     // Git info line (separate line above HUD header)

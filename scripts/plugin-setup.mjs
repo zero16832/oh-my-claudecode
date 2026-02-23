@@ -8,7 +8,7 @@
 import { existsSync, mkdirSync, writeFileSync, readFileSync, readdirSync, chmodSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -25,7 +25,7 @@ if (!existsSync(HUD_DIR)) {
 }
 
 // 2. Create HUD wrapper script
-const hudScriptPath = join(HUD_DIR, 'omc-hud.mjs');
+const hudScriptPath = join(HUD_DIR, 'omc-hud.mjs').replace(/\\/g, '/');
 const hudScript = `#!/usr/bin/env node
 /**
  * OMC HUD - Statusline Script
@@ -35,6 +35,7 @@ const hudScript = `#!/usr/bin/env node
 import { existsSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 
 // Semantic version comparison: returns negative if a < b, positive if a > b, 0 if equal
 function semverCompare(a, b) {
@@ -58,7 +59,9 @@ async function main() {
   const home = homedir();
 
   // 1. Try plugin cache first (marketplace: omc, plugin: oh-my-claudecode)
-  const pluginCacheBase = join(home, ".claude/plugins/cache/omc/oh-my-claudecode");
+  // Respect CLAUDE_CONFIG_DIR so installs under a custom config dir are found
+  const configDir = process.env.CLAUDE_CONFIG_DIR || join(home, ".claude");
+  const pluginCacheBase = join(configDir, "plugins", "cache", "omc", "oh-my-claudecode");
   if (existsSync(pluginCacheBase)) {
     try {
       const versions = readdirSync(pluginCacheBase);
@@ -71,7 +74,7 @@ async function main() {
         if (builtVersions.length > 0) {
           const latestBuilt = builtVersions.sort(semverCompare).reverse()[0];
           const pluginPath = join(pluginCacheBase, latestBuilt, "dist/hud/index.js");
-          await import(pluginPath);
+          await import(pathToFileURL(pluginPath).href);
           return;
         }
       }
@@ -80,8 +83,8 @@ async function main() {
 
   // 2. Development paths
   const devPaths = [
-    join(home, "Workspace/oh-my-claude-sisyphus/dist/hud/index.js"),
-    join(home, "workspace/oh-my-claude-sisyphus/dist/hud/index.js"),
+    join(home, "Workspace/oh-my-claudecode/dist/hud/index.js"),
+    join(home, "workspace/oh-my-claudecode/dist/hud/index.js"),
     join(home, "Workspace/oh-my-claudecode/dist/hud/index.js"),
     join(home, "workspace/oh-my-claudecode/dist/hud/index.js"),
   ];
@@ -89,7 +92,7 @@ async function main() {
   for (const devPath of devPaths) {
     if (existsSync(devPath)) {
       try {
-        await import(devPath);
+        await import(pathToFileURL(devPath).href);
         return;
       } catch { /* continue */ }
     }
@@ -115,15 +118,69 @@ try {
     settings = JSON.parse(readFileSync(SETTINGS_FILE, 'utf-8'));
   }
 
-  // Update statusLine to use new HUD path
+  // Use the absolute node binary path so nvm/fnm users don't get
+  // "node not found" errors in non-interactive shells (issue #892).
+  const nodeBin = process.execPath || 'node';
   settings.statusLine = {
     type: 'command',
-    command: `node ${hudScriptPath}`
+    command: `${nodeBin} ${hudScriptPath.replace(/\\/g, "/")}`
   };
   writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
   console.log('[OMC] Configured HUD statusLine in settings.json');
+
+  // Persist the node binary path to .omc-config.json for use by find-node.sh
+  try {
+    const configPath = join(CLAUDE_DIR, '.omc-config.json');
+    let omcConfig = {};
+    if (existsSync(configPath)) {
+      omcConfig = JSON.parse(readFileSync(configPath, 'utf-8'));
+    }
+    if (nodeBin !== 'node') {
+      omcConfig.nodeBinary = nodeBin;
+      writeFileSync(configPath, JSON.stringify(omcConfig, null, 2));
+      console.log(`[OMC] Saved node binary path: ${nodeBin}`);
+    }
+  } catch (e) {
+    console.log('[OMC] Warning: Could not save node binary path (non-fatal):', e.message);
+  }
 } catch (e) {
   console.log('[OMC] Warning: Could not configure settings.json:', e.message);
+}
+
+// On Windows (MSYS2 / Git Bash), the sh->find-node.sh->node chain introduced
+// in v4.3.4 triggers Claude Code UI bug #17088, which mislabels every
+// successful hook as an error.  Patch hooks.json to use direct node invocation
+// instead.  find-node.sh is only needed on Unix for nvm/fnm PATH discovery.
+if (process.platform === 'win32') {
+  try {
+    const hooksJsonPath = join(__dirname, '..', 'hooks', 'hooks.json');
+    if (existsSync(hooksJsonPath)) {
+      const data = JSON.parse(readFileSync(hooksJsonPath, 'utf-8'));
+      // Matches: sh "${CLAUDE_PLUGIN_ROOT}/scripts/find-node.sh" "${CLAUDE_PLUGIN_ROOT}/scripts/X.mjs" [args]
+      const pattern =
+        /^sh "\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/find-node\.sh" "(\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/[^"]+)"(.*)$/;
+      let patched = false;
+      for (const groups of Object.values(data.hooks ?? {})) {
+        for (const group of groups) {
+          for (const hook of (group.hooks ?? [])) {
+            if (typeof hook.command === 'string') {
+              const m = hook.command.match(pattern);
+              if (m) {
+                hook.command = `node "${m[1]}"${m[2]}`;
+                patched = true;
+              }
+            }
+          }
+        }
+      }
+      if (patched) {
+        writeFileSync(hooksJsonPath, JSON.stringify(data, null, 2) + '\n');
+        console.log('[OMC] Patched hooks.json for Windows (direct node invocation, fixes issue #899)');
+      }
+    }
+  } catch (e) {
+    console.log('[OMC] Warning: Could not patch hooks.json for Windows:', e.message);
+  }
 }
 
 console.log('[OMC] Setup complete! Restart Claude Code to activate HUD.');

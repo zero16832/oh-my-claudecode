@@ -35,35 +35,35 @@ describe('Issue #595: Consensus mode execution handoff', () => {
     });
     describe('plan skill - consensus mode', () => {
         it('should mandate AskUserQuestion for the approval step', () => {
-            const skill = getBuiltinSkill('plan');
+            const skill = getBuiltinSkill('omc-plan');
             expect(skill).toBeDefined();
             const consensusSection = extractSection(skill.template, 'Consensus Mode');
             expect(consensusSection).toBeDefined();
             expect(consensusSection).toContain('AskUserQuestion');
         });
         it('should mandate Skill invocation for ralph on user approval', () => {
-            const skill = getBuiltinSkill('plan');
+            const skill = getBuiltinSkill('omc-plan');
             expect(skill).toBeDefined();
             const consensusSection = extractSection(skill.template, 'Consensus Mode');
             expect(consensusSection).toBeDefined();
             expect(consensusSection).toContain('Skill("oh-my-claudecode:ralph")');
         });
         it('should use MUST language for execution handoff', () => {
-            const skill = getBuiltinSkill('plan');
+            const skill = getBuiltinSkill('omc-plan');
             expect(skill).toBeDefined();
             const consensusSection = extractSection(skill.template, 'Consensus Mode');
             expect(consensusSection).toBeDefined();
             expect(consensusSection).toMatch(/\*\*MUST\*\*.*invoke.*Skill/i);
         });
         it('should prohibit direct implementation from the planning agent', () => {
-            const skill = getBuiltinSkill('plan');
+            const skill = getBuiltinSkill('omc-plan');
             expect(skill).toBeDefined();
             const consensusSection = extractSection(skill.template, 'Consensus Mode');
             expect(consensusSection).toBeDefined();
             expect(consensusSection).toMatch(/Do NOT implement directly/i);
         });
         it('should not modify interview mode steps', () => {
-            const skill = getBuiltinSkill('plan');
+            const skill = getBuiltinSkill('omc-plan');
             expect(skill).toBeDefined();
             const interviewSection = extractSection(skill.template, 'Interview Mode');
             expect(interviewSection).toBeDefined();
@@ -72,7 +72,7 @@ describe('Issue #595: Consensus mode execution handoff', () => {
             expect(interviewSection).toContain('Gather codebase facts first');
         });
         it('should not modify direct mode steps', () => {
-            const skill = getBuiltinSkill('plan');
+            const skill = getBuiltinSkill('omc-plan');
             expect(skill).toBeDefined();
             const directSection = extractSection(skill.template, 'Direct Mode');
             expect(directSection).toBeDefined();
@@ -80,7 +80,7 @@ describe('Issue #595: Consensus mode execution handoff', () => {
             expect(directSection).toContain('Create plan');
         });
         it('should not modify review mode steps', () => {
-            const skill = getBuiltinSkill('plan');
+            const skill = getBuiltinSkill('omc-plan');
             expect(skill).toBeDefined();
             const reviewSection = extractSection(skill.template, 'Review Mode');
             expect(reviewSection).toBeDefined();
@@ -88,7 +88,7 @@ describe('Issue #595: Consensus mode execution handoff', () => {
             expect(reviewSection).toContain('Evaluate via Critic');
         });
         it('should reference ralph skill invocation in escalation section', () => {
-            const skill = getBuiltinSkill('plan');
+            const skill = getBuiltinSkill('omc-plan');
             expect(skill).toBeDefined();
             const escalation = extractTagContent(skill.template, 'Escalation_And_Stop_Conditions');
             expect(escalation).toBeDefined();
@@ -99,7 +99,7 @@ describe('Issue #595: Consensus mode execution handoff', () => {
     });
     describe('Issue #600: User feedback step between Planner and Architect/Critic', () => {
         it('should have a user feedback step after Planner and before Architect', () => {
-            const skill = getBuiltinSkill('plan');
+            const skill = getBuiltinSkill('omc-plan');
             expect(skill).toBeDefined();
             const consensusSection = extractSection(skill.template, 'Consensus Mode');
             expect(consensusSection).toBeDefined();
@@ -115,7 +115,7 @@ describe('Issue #595: Consensus mode execution handoff', () => {
             expect(architectIdx).toBeGreaterThan(feedbackIdx);
         });
         it('should mandate AskUserQuestion for the user feedback step', () => {
-            const skill = getBuiltinSkill('plan');
+            const skill = getBuiltinSkill('omc-plan');
             expect(skill).toBeDefined();
             const consensusSection = extractSection(skill.template, 'Consensus Mode');
             expect(consensusSection).toBeDefined();
@@ -123,7 +123,7 @@ describe('Issue #595: Consensus mode execution handoff', () => {
             expect(consensusSection).toMatch(/User feedback.*MUST.*AskUserQuestion/s);
         });
         it('should offer Proceed/Request changes/Skip review options in user feedback step', () => {
-            const skill = getBuiltinSkill('plan');
+            const skill = getBuiltinSkill('omc-plan');
             expect(skill).toBeDefined();
             const consensusSection = extractSection(skill.template, 'Consensus Mode');
             expect(consensusSection).toBeDefined();
@@ -132,7 +132,7 @@ describe('Issue #595: Consensus mode execution handoff', () => {
             expect(consensusSection).toContain('Skip review');
         });
         it('should place Critic after Architect in the consensus flow', () => {
-            const skill = getBuiltinSkill('plan');
+            const skill = getBuiltinSkill('omc-plan');
             expect(skill).toBeDefined();
             const consensusSection = extractSection(skill.template, 'Consensus Mode');
             expect(consensusSection).toBeDefined();
@@ -141,37 +141,6 @@ describe('Issue #595: Consensus mode execution handoff', () => {
             expect(architectIdx).toBeGreaterThan(-1);
             expect(criticIdx).toBeGreaterThan(-1);
             expect(criticIdx).toBeGreaterThan(architectIdx);
-        });
-        it('should include user feedback step in ralplan alias workflow', () => {
-            const skill = getBuiltinSkill('ralplan');
-            expect(skill).toBeDefined();
-            expect(skill.template).toContain('**User feedback**');
-            // Verify ordering in ralplan too
-            const plannerIdx = skill.template.indexOf('**Planner** creates initial plan');
-            const feedbackIdx = skill.template.indexOf('**User feedback**');
-            const architectIdx = skill.template.indexOf('**Architect** reviews');
-            expect(plannerIdx).toBeGreaterThan(-1);
-            expect(feedbackIdx).toBeGreaterThan(-1);
-            expect(architectIdx).toBeGreaterThan(-1);
-            expect(feedbackIdx).toBeGreaterThan(plannerIdx);
-            expect(architectIdx).toBeGreaterThan(feedbackIdx);
-        });
-    });
-    describe('ralplan skill - consensus alias', () => {
-        it('should reference AskUserQuestion in the approval step', () => {
-            const skill = getBuiltinSkill('ralplan');
-            expect(skill).toBeDefined();
-            expect(skill.template).toContain('AskUserQuestion');
-        });
-        it('should reference ralph skill invocation on approval', () => {
-            const skill = getBuiltinSkill('ralplan');
-            expect(skill).toBeDefined();
-            expect(skill.template).toContain('Skill("oh-my-claudecode:ralph")');
-        });
-        it('should still identify as an alias for /plan --consensus', () => {
-            const skill = getBuiltinSkill('ralplan');
-            expect(skill).toBeDefined();
-            expect(skill.template).toContain('/oh-my-claudecode:plan --consensus');
         });
     });
 });
