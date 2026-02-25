@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getContract, buildLaunchArgs, buildWorkerArgv, getWorkerEnv, parseCliOutput } from '../model-contract.js';
+import { getContract, buildLaunchArgs, buildWorkerArgv, getWorkerEnv, parseCliOutput, isPromptModeAgent, getPromptModeArgs } from '../model-contract.js';
 describe('model-contract', () => {
     describe('getContract', () => {
         it('returns contract for claude', () => {
@@ -26,9 +26,9 @@ describe('model-contract', () => {
             const args = buildLaunchArgs('claude', { teamName: 't', workerName: 'w', cwd: '/tmp' });
             expect(args).toContain('--dangerously-skip-permissions');
         });
-        it('codex includes --full-auto and bypass approvals/sandbox', () => {
+        it('codex includes --dangerously-bypass-approvals-and-sandbox', () => {
             const args = buildLaunchArgs('codex', { teamName: 't', workerName: 'w', cwd: '/tmp' });
-            expect(args).toContain('--full-auto');
+            expect(args).not.toContain('--full-auto');
             expect(args).toContain('--dangerously-bypass-approvals-and-sandbox');
         });
         it('gemini includes --yolo', () => {
@@ -56,7 +56,6 @@ describe('model-contract', () => {
         it('builds binary + args', () => {
             expect(buildWorkerArgv('codex', { teamName: 'my-team', workerName: 'worker-1', cwd: '/tmp' })).toEqual([
                 'codex',
-                '--full-auto',
                 '--dangerously-bypass-approvals-and-sandbox',
             ]);
         });
@@ -71,6 +70,28 @@ describe('model-contract', () => {
         });
         it('codex falls back to raw output if no JSONL', () => {
             expect(parseCliOutput('codex', 'plain text')).toBe('plain text');
+        });
+    });
+    describe('prompt mode (headless TUI bypass)', () => {
+        it('gemini supports prompt mode', () => {
+            expect(isPromptModeAgent('gemini')).toBe(true);
+            const c = getContract('gemini');
+            expect(c.supportsPromptMode).toBe(true);
+            expect(c.promptModeFlag).toBe('-p');
+        });
+        it('claude does not support prompt mode', () => {
+            expect(isPromptModeAgent('claude')).toBe(false);
+        });
+        it('codex does not support prompt mode', () => {
+            expect(isPromptModeAgent('codex')).toBe(false);
+        });
+        it('getPromptModeArgs returns flag + instruction for gemini', () => {
+            const args = getPromptModeArgs('gemini', 'Read inbox');
+            expect(args).toEqual(['-p', 'Read inbox']);
+        });
+        it('getPromptModeArgs returns empty array for non-prompt-mode agents', () => {
+            expect(getPromptModeArgs('claude', 'Read inbox')).toEqual([]);
+            expect(getPromptModeArgs('codex', 'Read inbox')).toEqual([]);
         });
     });
 });
